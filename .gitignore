@@ -17,3 +17,5 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 *.log
+app/**/__pycache__/
+tests/__pycache__/
