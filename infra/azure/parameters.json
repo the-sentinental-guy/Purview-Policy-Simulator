@@ -1,0 +1,24 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "eastus"
+    },
+    "appName": {
+      "value": "purview-simulator"
+    },
+    "containerImage": {
+      "value": "ghcr.io/the-sentinental-guy/purview-policy-simulator:main"
+    },
+    "minReplicas": {
+      "value": 0
+    },
+    "maxReplicas": {
+      "value": 3
+    },
+    "corsOrigins": {
+      "value": "*"
+    }
+  }
+}
