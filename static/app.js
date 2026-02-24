@@ -115,7 +115,7 @@ async function loadCategories() {
     cats.forEach(cat => {
       const chip = document.createElement('span');
       chip.className   = 'category-chip';
-      chip.textContent = cat;
+      chip.textContent = cat.name ? `${cat.name} (${cat.count})` : String(cat);
       list.appendChild(chip);
     });
   } catch {
@@ -269,13 +269,13 @@ function renderResults(data, query) {
   }
 
   // Custom config
-  if (data.custom_config && Object.keys(data.custom_config).length > 0) {
-    body.appendChild(renderCustomConfig(data.custom_config));
+  if (data.custom_configuration && Object.keys(data.custom_configuration).length > 0) {
+    body.appendChild(renderCustomConfig(data.custom_configuration));
   }
 
   // Expected effects
-  if (data.expected_effects && data.expected_effects.length > 0) {
-    body.appendChild(renderEffects(data.expected_effects));
+  if (data.effects) {
+    body.appendChild(renderEffects(data.effects));
   }
 
   // Documentation links
@@ -297,27 +297,35 @@ function renderResults(data, query) {
 
 // ── Render template match ─────────────────────────────────
 function renderTemplateMatch(match) {
-  const confidenceBadge = renderConfidenceBadge(match.confidence_score, match.confidence_level);
-  const tags = (match.tags || []).map(t => `<span class="tag">${escHtml(t)}</span>`).join('');
+  const conf   = match.confidence || {};
+  const tmpl   = match.template   || {};
+  const score  = conf.score;
+  const level  = conf.level;
+  const confidenceBadge = renderConfidenceBadge(score, level);
+  const tags = (tmpl.tags || []).map(t => `<span class="tag">${escHtml(t)}</span>`).join('');
   const tagsHtml = tags ? `<div class="tag-list">${tags}</div>` : '';
+  const frameworks = (tmpl.compliance_frameworks || []).join(', ');
+  const locations  = (tmpl.locations || []).join(', ');
 
   const section = createCollapsibleSection(
     '📋',
-    `Template Match${match.template_name ? ': ' + match.template_name : ''}`,
+    `Template Match${tmpl.name ? ': ' + tmpl.name : ''}`,
     `
     <div class="template-match-grid">
-      ${match.template_name ? `<span class="tm-label">Template</span><span class="tm-value">${escHtml(match.template_name)}</span>` : ''}
-      ${match.policy_type   ? `<span class="tm-label">Policy Type</span><span class="tm-value">${escHtml(match.policy_type)}</span>` : ''}
-      ${match.description   ? `<span class="tm-label">Description</span><span class="tm-value">${escHtml(match.description)}</span>` : ''}
+      ${tmpl.name        ? `<span class="tm-label">Template</span><span class="tm-value">${escHtml(tmpl.name)}</span>` : ''}
+      ${tmpl.category    ? `<span class="tm-label">Category</span><span class="tm-value">${escHtml(tmpl.category)}</span>` : ''}
+      ${tmpl.description ? `<span class="tm-label">Description</span><span class="tm-value">${escHtml(tmpl.description)}</span>` : ''}
       <span class="tm-label">Confidence</span>
       <span class="tm-value">
         ${confidenceBadge}
         <div class="confidence-bar-wrap">
-          <div class="confidence-bar ${confidenceClass(match.confidence_level)}"
-               style="width:${Math.round((match.confidence_score || 0) * 100)}%"></div>
+          <div class="confidence-bar ${confidenceClass(level)}"
+               style="width:${Math.round((score || 0) * 100)}%"></div>
         </div>
       </span>
-      ${match.match_reason ? `<span class="tm-label">Reason</span><span class="tm-value">${escHtml(match.match_reason)}</span>` : ''}
+      ${conf.reasoning   ? `<span class="tm-label">Reasoning</span><span class="tm-value">${escHtml(conf.reasoning)}</span>` : ''}
+      ${frameworks       ? `<span class="tm-label">Frameworks</span><span class="tm-value">${escHtml(frameworks)}</span>` : ''}
+      ${locations        ? `<span class="tm-label">Locations</span><span class="tm-value">${escHtml(locations)}</span>` : ''}
     </div>
     ${tagsHtml}
     `,
@@ -328,9 +336,26 @@ function renderTemplateMatch(match) {
 
 // ── Render effects ────────────────────────────────────────
 function renderEffects(effects) {
-  const items = effects.map(e => `
-    <li class="effect-item">${escHtml(typeof e === 'string' ? e : e.description || JSON.stringify(e))}</li>
-  `).join('');
+  if (!effects) return document.createDocumentFragment();
+
+  // Collect all effect strings from the SimulationEffects object fields
+  const allItems = [];
+  const addItems = (label, arr) => {
+    if (Array.isArray(arr) && arr.length > 0) {
+      arr.forEach(e => allItems.push(`<strong>${escHtml(label)}:</strong> ${escHtml(String(e))}`));
+    }
+  };
+  addItems('Blocked', effects.blocked_actions);
+  addItems('Audited', effects.audited_actions);
+  addItems('Notification', effects.notifications);
+  addItems('Policy tip', effects.policy_tips);
+  addItems('Incident report', effects.incident_reports);
+  if (effects.user_experience)    allItems.push(`<strong>User experience:</strong> ${escHtml(effects.user_experience)}`);
+  if (effects.admin_experience)   allItems.push(`<strong>Admin experience:</strong> ${escHtml(effects.admin_experience)}`);
+  if (effects.false_positive_risk) allItems.push(`<strong>False positive risk:</strong> ${escHtml(effects.false_positive_risk)}`);
+  addItems('Recommendation', effects.deployment_recommendations);
+
+  const items = allItems.map(e => `<li class="effect-item">${e}</li>`).join('');
 
   return createCollapsibleSection(
     '⚡',
@@ -389,22 +414,33 @@ function renderConfidenceBadge(score, level) {
 
 // ── Render custom config ──────────────────────────────────
 function renderCustomConfig(config) {
-  const rows = Object.entries(config).map(([key, val]) => {
-    const display = typeof val === 'object'
-      ? `<code>${escHtml(JSON.stringify(val, null, 2))}</code>`
-      : `<code>${escHtml(String(val))}</code>`;
-    return `
-      <div class="config-item">
-        <span class="config-key">${escHtml(key)}</span>
-        <span class="config-value">${display}</span>
-      </div>
-    `;
-  }).join('');
+  // Build readable sections from CustomConfiguration fields
+  let html = '';
+  if (config.title)       html += `<div class="config-item"><span class="config-key">Title</span><span class="config-value">${escHtml(config.title)}</span></div>`;
+  if (config.locations?.length)    html += `<div class="config-item"><span class="config-key">Locations</span><span class="config-value">${escHtml(config.locations.join(', '))}</span></div>`;
+  if (config.sensitive_info_types?.length) html += `<div class="config-item"><span class="config-key">Sensitive Info Types</span><span class="config-value">${escHtml(config.sensitive_info_types.join(', '))}</span></div>`;
+  if (config.actions?.length)      html += `<div class="config-item"><span class="config-key">Actions</span><span class="config-value">${escHtml(config.actions.join('; '))}</span></div>`;
+  if (config.steps?.length) {
+    const stepHtml = config.steps.map((s,i) => `<li>${escHtml(`${i+1}. ${s}`)}</li>`).join('');
+    html += `<div class="config-item"><span class="config-key">Steps</span><span class="config-value"><ol style="margin:0;padding-left:18px">${stepHtml}</ol></span></div>`;
+  }
+  if (config.gap_analysis) {
+    const ga = config.gap_analysis;
+    if (ga.covered?.length)  html += `<div class="config-item"><span class="config-key">✅ Covered</span><span class="config-value">${escHtml(ga.covered.join(', '))}</span></div>`;
+    if (ga.missing?.length)  html += `<div class="config-item"><span class="config-key">⚠️ Missing</span><span class="config-value">${escHtml(ga.missing.join(', '))}</span></div>`;
+  }
+  if (!html) {
+    const rows = Object.entries(config).map(([key, val]) => {
+      const display = typeof val === 'object' ? `<code>${escHtml(JSON.stringify(val, null, 2))}</code>` : `<code>${escHtml(String(val))}</code>`;
+      return `<div class="config-item"><span class="config-key">${escHtml(key)}</span><span class="config-value">${display}</span></div>`;
+    }).join('');
+    html = rows;
+  }
 
   return createCollapsibleSection(
     '🔧',
     'Custom Configuration',
-    `<div class="config-grid">${rows}</div>`,
+    `<div class="config-grid">${html}</div>`,
     false
   );
 }

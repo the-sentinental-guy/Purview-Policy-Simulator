@@ -45,6 +45,9 @@ class MCPClient:
         return bool(self._available)
 
     async def _call_tool(self, tool_name: str, arguments: Dict) -> Optional[Dict]:
+        if self._available is False:
+            return None
+
         cache_key = f"{tool_name}:{json.dumps(arguments, sort_keys=True)}"
         if cache_key in self._cache:
             return self._cache[cache_key]
@@ -138,8 +141,8 @@ class MCPClient:
                     docs.append(
                         MCPDocumentation(
                             title=item.get("title", ""),
-                            url=item.get("url", ""),
-                            summary=item.get("summary", item.get("description", "")),
+                            url=item.get("url", item.get("contentUrl", "")),
+                            summary=item.get("summary", item.get("description", item.get("content", ""))[:300] if item.get("content") else ""),
                         )
                     )
             return docs
