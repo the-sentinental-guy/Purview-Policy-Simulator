@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Microsoft Purview Policy Simulator</title>
+  <style>
+    /* ── Reset & Base ──────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --purview-blue:   #0078d4;
+      --purview-dark:   #004578;
+      --purview-light:  #deecf9;
+      --purview-accent: #00b7c3;
+      --success:        #107c10;
+      --warning:        #d83b01;
+      --caution:        #ffaa44;
+      --text:           #201f1e;
+      --text-light:     #605e5c;
+      --border:         #edebe9;
+      --bg-light:       #f3f2f1;
+      --white:          #ffffff;
+      --radius:         8px;
+      --shadow:         0 2px 8px rgba(0,0,0,.12);
+    }
+
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: var(--bg-light);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* ── Header ────────────────────────────────────────────────────────────── */
+    .app-header {
+      background: var(--purview-blue);
+      color: var(--white);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      box-shadow: 0 2px 6px rgba(0,0,0,.25);
+      height: 60px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .app-header svg { flex-shrink: 0; }
+    .app-header h1 { font-size: 1.15rem; font-weight: 600; }
+    .app-header span.beta {
+      font-size: .68rem; font-weight: 700; background: var(--purview-accent);
+      color: var(--white); border-radius: 3px; padding: 1px 6px;
+      text-transform: uppercase; letter-spacing: .5px; margin-left: 4px;
+    }
+
+    /* ── Layout ─────────────────────────────────────────────────────────────── */
+    .app-container {
+      max-width: 960px;
+      margin: 2rem auto;
+      padding: 0 1.5rem 4rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    /* ── Card ───────────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1.5rem;
+    }
+    .card-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--purview-dark);
+      margin-bottom: .75rem;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+    .card-title svg { color: var(--purview-blue); }
+
+    /* ── Input area ─────────────────────────────────────────────────────────── */
+    .input-group { display: flex; flex-direction: column; gap: .5rem; }
+    .input-label {
+      font-size: .85rem;
+      font-weight: 600;
+      color: var(--text-light);
+    }
+    textarea#requirement {
+      width: 100%;
+      min-height: 120px;
+      padding: .75rem 1rem;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      font-size: .95rem;
+      font-family: inherit;
+      resize: vertical;
+      transition: border-color .2s;
+      color: var(--text);
+    }
+    textarea#requirement:focus {
+      outline: none;
+      border-color: var(--purview-blue);
+      box-shadow: 0 0 0 3px rgba(0,120,212,.15);
+    }
+    .example-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .5rem;
+      margin-top: .25rem;
+    }
+    .chip {
+      font-size: .78rem;
+      padding: 4px 12px;
+      border: 1.5px solid var(--purview-blue);
+      border-radius: 20px;
+      cursor: pointer;
+      background: var(--white);
+      color: var(--purview-blue);
+      transition: background .15s, color .15s;
+      user-select: none;
+    }
+    .chip:hover { background: var(--purview-light); }
+
+    .btn-simulate {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      background: var(--purview-blue);
+      color: var(--white);
+      border: none;
+      border-radius: var(--radius);
+      padding: .65rem 1.5rem;
+      font-size: .95rem;
+      font-weight: 600;
+      cursor: pointer;
+      align-self: flex-start;
+      transition: background .2s, transform .1s;
+    }
+    .btn-simulate:hover { background: var(--purview-dark); }
+    .btn-simulate:active { transform: scale(.98); }
+    .btn-simulate:disabled { background: #a19f9d; cursor: not-allowed; }
+
+    /* ── Spinner ─────────────────────────────────────────────────────────────── */
+    .spinner {
+      display: none;
+      width: 18px; height: 18px;
+      border: 2.5px solid rgba(255,255,255,.4);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Results ─────────────────────────────────────────────────────────────── */
+    #results { display: none; }
+
+    .summary-banner {
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      display: flex;
+      gap: .75rem;
+      align-items: flex-start;
+      font-size: .92rem;
+    }
+    .summary-banner.template  { background: #dff6dd; border-left: 4px solid var(--success); }
+    .summary-banner.custom    { background: #fff4ce; border-left: 4px solid var(--caution); }
+    .summary-banner .icon     { font-size: 1.3rem; flex-shrink: 0; line-height: 1.3; }
+    .summary-banner strong    { color: var(--text); }
+
+    /* ── Confidence Bar ──────────────────────────────────────────────────────── */
+    .confidence-container { margin-top: .5rem; }
+    .confidence-label {
+      font-size: .82rem; font-weight: 600;
+      color: var(--text-light); margin-bottom: 4px;
+    }
+    .confidence-track {
+      height: 10px; background: var(--bg-light);
+      border-radius: 5px; overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .confidence-fill {
+      height: 100%; border-radius: 5px;
+      transition: width .6s cubic-bezier(.4,0,.2,1);
+    }
+    .confidence-fill.high   { background: var(--success); }
+    .confidence-fill.medium { background: var(--caution); }
+    .confidence-fill.low    { background: var(--warning); }
+    .confidence-value {
+      font-size: .88rem; font-weight: 700;
+      margin-top: 4px; color: var(--text);
+    }
+
+    /* ── Keyword Badges ──────────────────────────────────────────────────────── */
+    .keyword-list { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .5rem; }
+    .kw-badge {
+      font-size: .75rem; font-weight: 600;
+      padding: 2px 10px; border-radius: 12px;
+      background: var(--purview-light); color: var(--purview-dark);
+    }
+
+    /* ── Template / Config Cards ─────────────────────────────────────────────── */
+    .result-grid { display: flex; flex-direction: column; gap: 1rem; }
+
+    .result-card {
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .result-card-header {
+      background: var(--bg-light);
+      padding: .75rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .5rem;
+      cursor: pointer;
+      user-select: none;
+      border-bottom: 1.5px solid var(--border);
+    }
+    .result-card-header:hover { background: var(--purview-light); }
+    .result-card-title {
+      font-weight: 700; font-size: .93rem;
+      display: flex; align-items: center; gap: .5rem;
+    }
+    .category-badge {
+      font-size: .7rem; font-weight: 700;
+      padding: 2px 8px; border-radius: 10px;
+      background: var(--purview-blue); color: white;
+      text-transform: uppercase; letter-spacing: .4px;
+    }
+    .template-badge {
+      font-size: .7rem; font-weight: 700;
+      padding: 2px 8px; border-radius: 10px;
+      background: var(--success); color: white;
+    }
+    .custom-badge {
+      font-size: .7rem; font-weight: 700;
+      padding: 2px 8px; border-radius: 10px;
+      background: var(--caution); color: white;
+    }
+    .chevron { transition: transform .25s; font-size: .75rem; color: var(--text-light); }
+    .chevron.open { transform: rotate(180deg); }
+
+    .result-card-body { padding: 1rem; display: none; }
+    .result-card-body.open { display: block; }
+
+    .result-section-title {
+      font-size: .8rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .5px; color: var(--text-light);
+      margin: .75rem 0 .35rem;
+    }
+    .result-section-title:first-child { margin-top: 0; }
+
+    .effect-list, .steps-list { padding-left: 1.25rem; }
+    .effect-list li, .steps-list li {
+      font-size: .88rem; color: var(--text);
+      margin-bottom: .3rem; line-height: 1.5;
+    }
+    .effect-list li::marker { color: var(--purview-blue); }
+    .steps-list li::marker  { color: var(--purview-accent); }
+
+    .workload-tags { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .25rem; }
+    .workload-tag {
+      font-size: .75rem; padding: 2px 10px; border-radius: 12px;
+      background: var(--bg-light); border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .sit-list { font-size: .88rem; color: var(--text); padding-left: 1.1rem; }
+    .sit-list li { margin-bottom: .2rem; }
+
+    /* ── Match score ────────────────────────────────────────────────────────── */
+    .match-score {
+      font-size: .78rem; font-weight: 600;
+      color: var(--purview-dark); white-space: nowrap;
+    }
+    .match-score span { color: var(--purview-blue); }
+
+    /* ── Empty / error state ─────────────────────────────────────────────────── */
+    .empty-state {
+      text-align: center; padding: 2.5rem 1rem; color: var(--text-light);
+    }
+    .empty-state svg { display: block; margin: 0 auto .75rem; }
+
+    .error-banner {
+      background: #fde7e9; border-left: 4px solid var(--warning);
+      border-radius: var(--radius); padding: .75rem 1rem;
+      font-size: .9rem; color: var(--warning); font-weight: 500;
+    }
+
+    /* ── Responsive ─────────────────────────────────────────────────────────── */
+    @media (max-width: 640px) {
+      .app-header h1 { font-size: 1rem; }
+      .app-container { padding: 0 .75rem 3rem; }
+      .btn-simulate { width: 100%; justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ───────────────────────────────────────────────────────────────── -->
+<header class="app-header">
+  <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <rect width="32" height="32" rx="6" fill="white" fill-opacity=".15"/>
+    <path d="M16 4L28 10V22L16 28L4 22V10L16 4Z" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M16 4V28M4 10L28 22M28 10L4 22" stroke="white" stroke-width="1.2" stroke-linecap="round"/>
+  </svg>
+  <h1>Microsoft Purview Policy Simulator</h1>
+  <span class="beta" aria-label="Beta version">Beta</span>
+</header>
+
+<!-- ── Main ─────────────────────────────────────────────────────────────────── -->
+<main class="app-container">
+
+  <!-- Input Card -->
+  <section class="card" aria-label="Policy requirement input">
+    <div class="card-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      Describe Your Policy Requirement
+    </div>
+
+    <div class="input-group">
+      <label class="input-label" for="requirement">
+        Explain what you want to protect, who should be restricted, and in which workloads (optional examples help).
+      </label>
+      <textarea id="requirement"
+        placeholder="e.g. I want to prevent employees from sending credit card numbers and bank account details via email to people outside the organization. We also need to comply with PCI-DSS requirements."
+        aria-label="Policy requirement description"
+      ></textarea>
+
+      <p class="input-label" style="margin-top:.25rem;">Quick examples:</p>
+      <div class="example-chips" role="list" aria-label="Example requirements">
+        <span class="chip" role="listitem" tabindex="0"
+          data-example="Prevent sharing of patient medical records and health insurance information outside the organization to comply with HIPAA.">
+          🏥 HIPAA / Medical data
+        </span>
+        <span class="chip" role="listitem" tabindex="0"
+          data-example="Block employees from emailing credit card numbers or bank account numbers to external recipients. We need PCI-DSS compliance.">
+          💳 Financial / PCI-DSS
+        </span>
+        <span class="chip" role="listitem" tabindex="0"
+          data-example="Protect personal data of EU residents such as passport numbers and national ID numbers to comply with GDPR.">
+          🇪🇺 GDPR / EU Privacy
+        </span>
+        <span class="chip" role="listitem" tabindex="0"
+          data-example="Classify and encrypt all confidential documents and emails so only authorized internal users can open them.">
+          🔒 Document classification & encryption
+        </span>
+        <span class="chip" role="listitem" tabindex="0"
+          data-example="Detect and block source code files from being shared externally via email or Teams.">
+          💻 Source code / IP protection
+        </span>
+        <span class="chip" role="listitem" tabindex="0"
+          data-example="Monitor communications in Teams and email for regulatory violations and insider trading signals.">
+          📡 Communication compliance
+        </span>
+        <span class="chip" role="listitem" tabindex="0"
+          data-example="Prevent employees on the HR termination list from exfiltrating sensitive data via USB drives, email, or OneDrive.">
+          🚨 Insider risk / departing employees
+        </span>
+        <span class="chip" role="listitem" tabindex="0"
+          data-example="Retain all emails and SharePoint documents for 7 years for legal and regulatory compliance purposes.">
+          📁 Data retention & lifecycle
+        </span>
+      </div>
+
+      <button class="btn-simulate" id="simulateBtn" aria-label="Run simulation">
+        <span class="spinner" id="spinner" aria-hidden="true"></span>
+        <svg id="btnIcon" width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polygon points="5 3 19 12 5 21 5 3"/>
+        </svg>
+        Run Simulation
+      </button>
+    </div>
+  </section>
+
+  <!-- Results Section -->
+  <div id="results" role="region" aria-live="polite" aria-label="Simulation results">
+
+    <!-- Summary + Confidence -->
+    <section class="card" id="summaryCard">
+      <div class="card-title">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        Simulation Summary
+      </div>
+      <div id="summaryBanner"></div>
+      <div class="confidence-container" id="confidenceContainer" style="margin-top:1rem;">
+        <div class="confidence-label">Overall Confidence Score</div>
+        <div class="confidence-track">
+          <div class="confidence-fill" id="confidenceFill" style="width:0%"></div>
+        </div>
+        <div class="confidence-value" id="confidenceValue">—</div>
+      </div>
+      <div id="keywordsContainer" style="margin-top:.75rem; display:none;">
+        <div class="confidence-label">Matched Keywords</div>
+        <div class="keyword-list" id="keywordList"></div>
+      </div>
+    </section>
+
+    <!-- Matched Templates -->
+    <section class="card" id="templatesCard" style="display:none;">
+      <div class="card-title">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="9 11 12 14 22 4"/>
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+        </svg>
+        Matched Policy Templates
+      </div>
+      <div class="result-grid" id="templatesList"></div>
+    </section>
+
+    <!-- Custom Configurations -->
+    <section class="card" id="customCard" style="display:none;">
+      <div class="card-title">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+        </svg>
+        Recommended Custom Configurations
+      </div>
+      <p style="font-size:.88rem;color:var(--text-light);margin-bottom:1rem;">
+        The following custom configurations will help you build a policy that fully meets your requirement.
+        Click each item to expand implementation steps.
+      </p>
+      <div class="result-grid" id="customList"></div>
+    </section>
+
+  </div><!-- /results -->
+</main>
+
+<script>
+/* ── Helpers ─────────────────────────────────────────────────────────────── */
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function makeAccordion(title, categoryBadge, availabilityBadge, bodyHtml, matchInfo) {
+  const id = 'acc-' + Math.random().toString(36).slice(2);
+  return `
+    <div class="result-card">
+      <div class="result-card-header" onclick="toggleAccordion('${id}')" role="button" tabindex="0"
+        aria-expanded="false" aria-controls="${id}-body"
+        onkeydown="if(event.key==='Enter'||event.key===' '){toggleAccordion('${id}');event.preventDefault();}">
+        <div class="result-card-title">
+          <span class="category-badge">${escapeHtml(categoryBadge)}</span>
+          ${escapeHtml(title)}
+        </div>
+        <div style="display:flex;align-items:center;gap:.5rem;">
+          ${matchInfo ? `<span class="match-score">Match: <span>${escapeHtml(matchInfo)}</span></span>` : ''}
+          ${availabilityBadge}
+          <span class="chevron" id="${id}-chevron">▼</span>
+        </div>
+      </div>
+      <div class="result-card-body" id="${id}-body" role="region">
+        ${bodyHtml}
+      </div>
+    </div>`;
+}
+
+function toggleAccordion(id) {
+  const body = document.getElementById(id + '-body');
+  const chevron = document.getElementById(id + '-chevron');
+  const header = body.previousElementSibling;
+  const isOpen = body.classList.toggle('open');
+  chevron.classList.toggle('open', isOpen);
+  header.setAttribute('aria-expanded', isOpen);
+}
+
+function confidenceClass(val) {
+  if (val >= 80) return 'high';
+  if (val >= 55) return 'medium';
+  return 'low';
+}
+
+function confidenceLabel(val) {
+  if (val >= 80) return `${val}% — High confidence`;
+  if (val >= 55) return `${val}% — Medium confidence`;
+  return `${val}% — Low confidence (custom configuration required)`;
+}
+
+/* ── Build template card body ─────────────────────────────────────────────── */
+function buildTemplateBody(tpl) {
+  const workloadTags = (tpl.workloads || [])
+    .map(w => `<span class="workload-tag">${escapeHtml(w)}</span>`).join('');
+
+  const effectItems = (tpl.expected_effects || [])
+    .map(e => `<li>${escapeHtml(e)}</li>`).join('');
+
+  const sitItems = (tpl.sensitive_info_types || []).length
+    ? `<div class="result-section-title">Sensitive Information Types Detected</div>
+       <ul class="sit-list">${(tpl.sensitive_info_types).map(s=>`<li>${escapeHtml(s)}</li>`).join('')}</ul>`
+    : '';
+
+  const matchedKwHtml = (tpl.matched_keywords || []).length
+    ? `<div class="result-section-title">Matched Keywords</div>
+       <div class="keyword-list">${(tpl.matched_keywords).map(k=>`<span class="kw-badge">${escapeHtml(k)}</span>`).join('')}</div>`
+    : '';
+
+  const actionsItems = (tpl.default_actions || [])
+    .map(a => `<li>${escapeHtml(a)}</li>`).join('');
+
+  const confClass = confidenceClass(tpl.confidence);
+  const confLabel = confidenceLabel(tpl.confidence);
+
+  return `
+    <p style="font-size:.88rem;color:var(--text-light);margin-bottom:.75rem;">${escapeHtml(tpl.description)}</p>
+
+    <div class="confidence-container">
+      <div class="confidence-label">Template Confidence</div>
+      <div class="confidence-track">
+        <div class="confidence-fill ${confClass}" style="width:${tpl.confidence}%"></div>
+      </div>
+      <div class="confidence-value">${escapeHtml(confLabel)}</div>
+    </div>
+
+    <div class="result-section-title" style="margin-top:.85rem;">Supported Workloads</div>
+    <div class="workload-tags">${workloadTags}</div>
+
+    ${sitItems}
+
+    <div class="result-section-title">Default Policy Actions</div>
+    <ul class="effect-list">${actionsItems}</ul>
+
+    <div class="result-section-title">Expected Effects After Deployment</div>
+    <ul class="effect-list">${effectItems}</ul>
+
+    ${matchedKwHtml}
+  `;
+}
+
+/* ── Build custom config card body ───────────────────────────────────────── */
+function buildCustomBody(cfg) {
+  const stepsHtml = (cfg.configuration_steps || [])
+    .map((s, i) => `<li><strong>Step ${i+1}:</strong> ${escapeHtml(s)}</li>`).join('');
+  const whenHtml = cfg.when_to_use
+    ? `<div class="result-section-title">When to Use</div>
+       <p style="font-size:.88rem;color:var(--text-light);">${escapeHtml(cfg.when_to_use)}</p>` : '';
+
+  return `
+    <p style="font-size:.88rem;color:var(--text-light);margin-bottom:.75rem;">${escapeHtml(cfg.description)}</p>
+    ${whenHtml}
+    <div class="result-section-title">Implementation Steps</div>
+    <ol class="steps-list">${stepsHtml}</ol>
+  `;
+}
+
+/* ── Main render ─────────────────────────────────────────────────────────── */
+function renderResults(data) {
+  const resultsEl      = document.getElementById('results');
+  const summaryBanner  = document.getElementById('summaryBanner');
+  const confFill       = document.getElementById('confidenceFill');
+  const confValue      = document.getElementById('confidenceValue');
+  const keywordsEl     = document.getElementById('keywordsContainer');
+  const keywordList    = document.getElementById('keywordList');
+  const templatesCard  = document.getElementById('templatesCard');
+  const templatesList  = document.getElementById('templatesList');
+  const customCard     = document.getElementById('customCard');
+  const customList     = document.getElementById('customList');
+
+  resultsEl.style.display = 'flex';
+  resultsEl.style.flexDirection = 'column';
+  resultsEl.style.gap = '1.5rem';
+
+  /* Summary banner */
+  const bannerClass = data.requires_custom ? 'custom' : 'template';
+  const bannerIcon  = data.requires_custom ? '⚠️' : '✅';
+  summaryBanner.innerHTML = `
+    <div class="summary-banner ${bannerClass}">
+      <span class="icon" aria-hidden="true">${bannerIcon}</span>
+      <div>
+        <strong>${data.requires_custom ? 'Custom Policy Required' : 'Template Available'}</strong>
+        <div style="margin-top:.3rem;">${escapeHtml(data.summary)}</div>
+      </div>
+    </div>`;
+
+  /* Confidence bar */
+  const conf = data.overall_confidence || 0;
+  const cls  = confidenceClass(conf);
+  confFill.className = `confidence-fill ${cls}`;
+  confFill.style.width = conf + '%';
+  confValue.textContent = confidenceLabel(conf);
+
+  /* Keywords */
+  if (data.matched_keywords && data.matched_keywords.length) {
+    keywordsEl.style.display = 'block';
+    keywordList.innerHTML = data.matched_keywords
+      .map(k => `<span class="kw-badge">${escapeHtml(k)}</span>`).join('');
+  } else {
+    keywordsEl.style.display = 'none';
+  }
+
+  /* Templates */
+  if (data.matched_templates && data.matched_templates.length) {
+    templatesCard.style.display = 'block';
+    templatesList.innerHTML = data.matched_templates.map(tpl => {
+      const availBadge = tpl.template_available
+        ? `<span class="template-badge">Template Available</span>`
+        : `<span class="custom-badge">Custom Required</span>`;
+      const matchInfo = `${tpl.match_score} keyword${tpl.match_score !== 1 ? 's' : ''} matched`;
+      return makeAccordion(
+        tpl.name,
+        tpl.category + (tpl.subcategory ? ' › ' + tpl.subcategory : ''),
+        availBadge,
+        buildTemplateBody(tpl),
+        matchInfo
+      );
+    }).join('');
+    /* Auto-expand first card */
+    const firstBody = templatesList.querySelector('.result-card-body');
+    if (firstBody) {
+      const firstId = firstBody.id.replace('-body','');
+      toggleAccordion(firstId);
+    }
+  } else {
+    templatesCard.style.display = 'none';
+  }
+
+  /* Custom configs */
+  if (data.custom_configs && data.custom_configs.length) {
+    customCard.style.display = 'block';
+    customList.innerHTML = data.custom_configs.map(cfg =>
+      makeAccordion(cfg.name, 'Configuration', '', buildCustomBody(cfg), null)
+    ).join('');
+  } else {
+    customCard.style.display = 'none';
+  }
+}
+
+/* ── Simulate button ─────────────────────────────────────────────────────── */
+document.getElementById('simulateBtn').addEventListener('click', async () => {
+  const req = document.getElementById('requirement').value.trim();
+  if (!req) {
+    document.getElementById('requirement').focus();
+    return;
+  }
+
+  const btn     = document.getElementById('simulateBtn');
+  const spinner = document.getElementById('spinner');
+  const btnIcon = document.getElementById('btnIcon');
+
+  btn.disabled      = true;
+  spinner.style.display = 'block';
+  btnIcon.style.display = 'none';
+  document.getElementById('results').style.display = 'none';
+
+  try {
+    const resp = await fetch('/api/simulate', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ requirement: req }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      throw new Error(data.error || 'Simulation failed. Please try again.');
+    }
+    renderResults(data);
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (err) {
+    document.getElementById('results').style.display = 'flex';
+    document.getElementById('results').style.flexDirection = 'column';
+    document.getElementById('results').style.gap = '1.5rem';
+    document.getElementById('summaryBanner').innerHTML =
+      `<div class="error-banner">⚠️ ${escapeHtml(err.message)}</div>`;
+    document.getElementById('confidenceContainer').style.display = 'none';
+    document.getElementById('templatesCard').style.display = 'none';
+    document.getElementById('customCard').style.display = 'none';
+  } finally {
+    btn.disabled          = false;
+    spinner.style.display = 'none';
+    btnIcon.style.display = 'block';
+  }
+});
+
+/* ── Example chips ───────────────────────────────────────────────────────── */
+document.querySelectorAll('.chip').forEach(chip => {
+  const activate = () => {
+    document.getElementById('requirement').value = chip.dataset.example;
+    document.getElementById('requirement').focus();
+  };
+  chip.addEventListener('click', activate);
+  chip.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); }
+  });
+});
+</script>
+</body>
+</html>
