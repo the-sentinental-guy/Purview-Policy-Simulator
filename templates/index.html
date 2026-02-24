@@ -525,6 +525,12 @@
     @media (max-width: 479px) {
       .btn-simulate span.btn-label { display: none; }
     }
+
+    /* Visually hidden (screen-reader only) */
+    .sr-only {
+      position: absolute; width: 1px; height: 1px;
+      overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap;
+    }
   </style>
 </head>
 <body>
@@ -651,10 +657,10 @@
     <!-- Input dock -->
     <div class="input-dock">
       <div class="input-dock-inner">
-        <label for="requirement" class="visually-hidden" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">Policy requirement description</label>
+        <label for="requirement" class="sr-only">Policy requirement description</label>
         <textarea
           id="requirement"
-          placeholder="e.g. I want to prevent employees from sending credit card numbers outside the organisation and comply with PCI-DSS…"
+          placeholder="e.g. I want to prevent employees from sending credit card numbers outside the organization and comply with PCI-DSS…"
           aria-label="Policy requirement description"
           rows="3"
         ></textarea>
@@ -743,7 +749,7 @@ function makeConfBar(value, label) {
       <span>${escapeHtml(label)}</span>
       <span class="conf-pct">${value}%</span>
     </div>
-    <div class="conf-track"><div class="conf-fill ${cls}" style="width:${value}%"></div></div>
+    <div class="conf-track"><div class="conf-fill ${cls}" style="width:${value}%" data-target="${value}%"></div></div>
     <div class="conf-note">${lbl}</div>
   </div>`;
 }
@@ -752,7 +758,7 @@ function makeConfBar(value, label) {
 function makeMiniBar(value) {
   const cls = confClass(value);
   return `<div class="mini-conf">
-    <div class="mini-track"><div class="mini-fill ${cls}" style="width:${value}%"></div></div>
+    <div class="mini-track"><div class="mini-fill ${cls}" style="width:${value}%" data-target="${value}%"></div></div>
   </div>`;
 }
 
@@ -1011,8 +1017,8 @@ function renderResults(data) {
   /* Animate confidence bars after DOM insertion */
   requestAnimationFrame(() => {
     area.querySelectorAll('.conf-fill, .mini-fill').forEach(el => {
-      const target = el.style.width;
-      el.style.width = '0';
+      const target = el.dataset.target || el.style.width || '0%';
+      el.style.width = '0%';
       requestAnimationFrame(() => { el.style.width = target; });
     });
   });
@@ -1127,7 +1133,7 @@ function openSidebar() {
   ov.classList.add('visible');
   ov.setAttribute('aria-hidden', 'false');
   hbr.setAttribute('aria-expanded', 'true');
-  sb.querySelector('.chip, button')?.focus();
+  sb.querySelector('.chip')?.focus();
 }
 
 function closeSidebar() {
