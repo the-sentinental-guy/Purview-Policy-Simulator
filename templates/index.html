@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Microsoft Purview Policy Simulator</title>
+  <style>
+    /* ── Reset & Base ──────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue:        #0078d4;
+      --blue-dark:   #004578;
+      --blue-light:  #deecf9;
+      --blue-hover:  #106ebe;
+      --accent:      #00b7c3;
+      --green:       #107c10;
+      --yellow:      #d79b00;
+      --orange:      #d83b01;
+      --red:         #c50f1f;
+      --amber:       #ffaa44;
+      --text:        #201f1e;
+      --text-sub:    #605e5c;
+      --text-muted:  #a19f9d;
+      --border:      #edebe9;
+      --border-mid:  #d2d0ce;
+      --bg:          #f3f2f1;
+      --bg-sidebar:  #faf9f8;
+      --white:       #ffffff;
+      --radius:      8px;
+      --shadow-sm:   0 1px 4px rgba(0,0,0,.10);
+      --shadow:      0 2px 8px rgba(0,0,0,.12);
+      --shadow-md:   0 4px 16px rgba(0,0,0,.14);
+      --sidebar-w:   280px;
+      --header-h:    52px;
+    }
+
+    html, body { height: 100%; overflow: hidden; }
+
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ──────────────────────────────────────────────────────── */
+    .app-header {
+      background: var(--blue);
+      color: var(--white);
+      height: var(--header-h);
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      padding: 0 1.25rem;
+      box-shadow: 0 2px 6px rgba(0,0,0,.28);
+      flex-shrink: 0;
+      z-index: 200;
+    }
+    .header-hamburger {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--white);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      line-height: 0;
+      margin-right: .25rem;
+    }
+    .header-hamburger:hover { background: rgba(255,255,255,.15); }
+    .header-logo { flex-shrink: 0; line-height: 0; }
+    .header-title { font-size: 1.05rem; font-weight: 600; white-space: nowrap; }
+    .header-beta {
+      font-size: .65rem; font-weight: 700;
+      background: var(--accent); color: var(--white);
+      border-radius: 3px; padding: 2px 6px;
+      text-transform: uppercase; letter-spacing: .5px;
+      flex-shrink: 0;
+    }
+    .header-spacer { flex: 1; }
+    .mcp-status-indicator {
+      display: flex; align-items: center; gap: .4rem;
+      font-size: .78rem; color: rgba(255,255,255,.85);
+      white-space: nowrap;
+    }
+    .mcp-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+      transition: background .3s;
+    }
+    .mcp-dot.on  { background: #54d46a; box-shadow: 0 0 4px rgba(84,212,106,.7); }
+    .mcp-dot.off { background: rgba(255,255,255,.35); }
+
+    /* ── App Body (below header) ─────────────────────────────────────── */
+    .app-body {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ──────────────────────────────────────────────────────── */
+    .sidebar {
+      width: var(--sidebar-w);
+      flex-shrink: 0;
+      background: var(--bg-sidebar);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: transform .25s ease, width .25s ease;
+      z-index: 150;
+    }
+    .sidebar-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem .875rem .5rem;
+    }
+    .sidebar-scroll::-webkit-scrollbar { width: 5px; }
+    .sidebar-scroll::-webkit-scrollbar-thumb { background: var(--border-mid); border-radius: 3px; }
+
+    .sidebar-section-label {
+      font-size: .68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .6px; color: var(--text-muted);
+      padding: .5rem .25rem .35rem;
+      margin-top: .5rem;
+    }
+    .sidebar-section-label:first-child { margin-top: 0; }
+
+    .chip-group { display: flex; flex-direction: column; gap: .3rem; margin-bottom: .25rem; }
+
+    .chip {
+      font-size: .8rem;
+      padding: 5px 10px;
+      border: 1px solid var(--border-mid);
+      border-radius: 6px;
+      cursor: pointer;
+      background: var(--white);
+      color: var(--text);
+      transition: background .12s, border-color .12s, color .12s;
+      user-select: none;
+      text-align: left;
+      line-height: 1.4;
+    }
+    .chip:hover  { background: var(--blue-light); border-color: var(--blue); color: var(--blue-dark); }
+    .chip:focus  { outline: 2px solid var(--blue); outline-offset: 1px; }
+    .chip:active { background: #c7e0f4; }
+
+    /* Sidebar settings panel */
+    .sidebar-settings {
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .settings-toggle-btn {
+      width: 100%;
+      display: flex; align-items: center; justify-content: space-between;
+      background: none; border: none; cursor: pointer;
+      padding: .75rem .875rem;
+      font-size: .82rem; font-weight: 600; color: var(--text-sub);
+      transition: background .12s;
+    }
+    .settings-toggle-btn:hover { background: var(--border); }
+    .settings-toggle-btn .s-chevron { transition: transform .2s; font-size: .7rem; }
+    .settings-toggle-btn.open .s-chevron { transform: rotate(180deg); }
+    .settings-body {
+      padding: 0 .875rem .875rem;
+      display: none;
+    }
+    .settings-body.open { display: block; }
+
+    .toggle-row {
+      display: flex; align-items: flex-start; gap: .6rem;
+      padding: .5rem 0;
+    }
+    .toggle-switch { position: relative; flex-shrink: 0; width: 40px; height: 22px; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .toggle-track {
+      position: absolute; inset: 0;
+      background: var(--border-mid); border-radius: 11px;
+      cursor: pointer; transition: background .2s;
+    }
+    .toggle-track::after {
+      content: '';
+      position: absolute; left: 3px; top: 3px;
+      width: 16px; height: 16px;
+      background: var(--white); border-radius: 50%;
+      transition: transform .2s;
+    }
+    .toggle-switch input:checked + .toggle-track { background: var(--blue); }
+    .toggle-switch input:checked + .toggle-track::after { transform: translateX(18px); }
+    .toggle-switch input:focus-visible + .toggle-track {
+      outline: 2px solid var(--blue); outline-offset: 2px;
+    }
+    .toggle-label { font-size: .8rem; color: var(--text); }
+    .toggle-label strong { display: block; font-weight: 600; margin-bottom: 2px; }
+    .toggle-label span   { color: var(--text-sub); font-size: .75rem; line-height: 1.3; display: block; }
+
+    .mcp-status-text {
+      font-size: .77rem; font-weight: 600; margin-top: .5rem;
+      padding: .3rem .6rem; border-radius: 4px;
+      display: inline-flex; align-items: center; gap: .35rem;
+    }
+    .mcp-status-text.on  { color: var(--green); background: #dff6dd; }
+    .mcp-status-text.off { color: var(--text-muted); background: var(--bg); }
+
+    /* ── Main content ────────────────────────────────────────────────── */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    /* Results scroll area */
+    .results-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .results-area::-webkit-scrollbar { width: 6px; }
+    .results-area::-webkit-scrollbar-thumb { background: var(--border-mid); border-radius: 3px; }
+
+    /* Welcome / empty state */
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 2rem 1rem;
+      color: var(--text-sub);
+      gap: .75rem;
+      min-height: 300px;
+    }
+    .empty-state-logo {
+      width: 64px; height: 64px;
+      background: var(--blue-light);
+      border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: .5rem;
+    }
+    .empty-state h2 { font-size: 1.15rem; font-weight: 600; color: var(--text); }
+    .empty-state p  { font-size: .88rem; max-width: 420px; line-height: 1.6; }
+
+    /* ── Input dock (bottom) ─────────────────────────────────────────── */
+    .input-dock {
+      border-top: 1px solid var(--border);
+      background: var(--white);
+      padding: .875rem 1.5rem 1rem;
+      flex-shrink: 0;
+      box-shadow: 0 -2px 8px rgba(0,0,0,.06);
+    }
+    .input-dock-inner {
+      display: flex;
+      gap: .625rem;
+      align-items: flex-end;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    textarea#requirement {
+      flex: 1;
+      min-height: 68px;
+      max-height: 180px;
+      padding: .625rem .875rem;
+      border: 1.5px solid var(--border-mid);
+      border-radius: var(--radius);
+      font-size: .92rem;
+      font-family: inherit;
+      resize: none;
+      line-height: 1.5;
+      color: var(--text);
+      background: var(--white);
+      transition: border-color .18s, box-shadow .18s;
+      overflow-y: auto;
+    }
+    textarea#requirement:focus {
+      outline: none;
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(0,120,212,.14);
+    }
+    textarea#requirement::placeholder { color: var(--text-muted); }
+
+    .btn-simulate {
+      flex-shrink: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: .4rem;
+      background: var(--blue); color: var(--white);
+      border: none; border-radius: var(--radius);
+      padding: .6rem 1.25rem;
+      font-size: .9rem; font-weight: 600;
+      cursor: pointer;
+      transition: background .18s, transform .1s, box-shadow .18s;
+      white-space: nowrap;
+      height: 44px;
+    }
+    .btn-simulate:hover:not(:disabled) { background: var(--blue-hover); box-shadow: 0 2px 6px rgba(0,120,212,.3); }
+    .btn-simulate:active:not(:disabled) { transform: scale(.97); }
+    .btn-simulate:disabled { background: var(--text-muted); cursor: not-allowed; }
+
+    .spinner {
+      display: none;
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,.4);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin .65s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Result section cards ───────────────────────────────────────── */
+    .result-section {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .result-section-hdr {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: .75rem 1rem;
+      cursor: pointer; user-select: none;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-sidebar);
+      transition: background .12s;
+    }
+    .result-section-hdr:hover { background: var(--blue-light); }
+    .result-section-hdr-left {
+      display: flex; align-items: center; gap: .5rem;
+      font-weight: 700; font-size: .93rem; color: var(--blue-dark);
+    }
+    .result-section-hdr-left .sec-icon { font-size: 1rem; }
+    .result-section-chevron { font-size: .72rem; color: var(--text-muted); transition: transform .22s; }
+    .result-section-chevron.open { transform: rotate(180deg); }
+    .result-section-body { padding: 1rem; display: none; }
+    .result-section-body.open { display: block; }
+
+    /* Summary banner inside Summary card */
+    .summary-banner {
+      border-radius: 6px;
+      padding: .875rem 1rem;
+      display: flex; gap: .75rem; align-items: flex-start;
+      font-size: .88rem; margin-bottom: .875rem;
+    }
+    .summary-banner.avail  { background: #dff6dd; border-left: 4px solid var(--green); }
+    .summary-banner.custom { background: #fff4ce; border-left: 4px solid var(--amber); }
+    .summary-banner .s-icon { font-size: 1.2rem; flex-shrink: 0; line-height: 1.3; }
+    .summary-banner .s-body strong { font-weight: 700; display: block; margin-bottom: 3px; color: var(--text); }
+
+    /* Confidence bar */
+    .conf-wrap { margin-bottom: .875rem; }
+    .conf-hdr  { display: flex; justify-content: space-between; align-items: baseline;
+                  font-size: .8rem; font-weight: 600; color: var(--text-sub); margin-bottom: 5px; }
+    .conf-hdr .conf-pct { font-size: .92rem; font-weight: 700; }
+    .conf-track { height: 10px; background: var(--bg); border-radius: 5px; overflow: hidden; border: 1px solid var(--border); }
+    .conf-fill  { height: 100%; border-radius: 5px; width: 0; transition: width .7s cubic-bezier(.4,0,.2,1); }
+    .conf-fill.c-green  { background: var(--green); }
+    .conf-fill.c-yellow { background: var(--yellow); }
+    .conf-fill.c-orange { background: var(--orange); }
+    .conf-fill.c-red    { background: var(--red); }
+    .conf-note { font-size: .78rem; color: var(--text-sub); margin-top: 4px; font-style: italic; }
+
+    /* Badge row */
+    .badge-row { display: flex; flex-wrap: wrap; gap: .35rem; margin-bottom: .5rem; }
+    .badge {
+      font-size: .72rem; font-weight: 600; padding: 2px 9px;
+      border-radius: 12px; display: inline-flex; align-items: center; gap: 3px;
+    }
+    .badge-blue   { background: var(--blue-light); color: var(--blue-dark); }
+    .badge-green  { background: #dff6dd; color: #0e600e; }
+    .badge-amber  { background: #fff4ce; color: #7a5200; }
+    .badge-gray   { background: var(--bg); color: var(--text-sub); border: 1px solid var(--border); }
+    .badge-purple { background: #f0e6ff; color: #5a189a; }
+    .badge-teal   { background: #e6fbfb; color: #006262; }
+    .badge-cat    { background: var(--blue); color: var(--white); }
+    .badge-avail  { background: var(--green); color: var(--white); }
+    .badge-custom { background: var(--amber); color: #5a3200; }
+
+    /* Sub-label */
+    .sub-label {
+      font-size: .73rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .5px; color: var(--text-muted);
+      margin: .75rem 0 .3rem;
+    }
+    .sub-label:first-child { margin-top: 0; }
+
+    /* Gap analysis bullets */
+    .gap-list { padding-left: 1.2rem; }
+    .gap-list li { font-size: .84rem; color: var(--text-sub); margin-bottom: .25rem; line-height: 1.5; }
+    .gap-list li::marker { color: var(--orange); }
+
+    /* Template accordion */
+    .tpl-list { display: flex; flex-direction: column; gap: .625rem; }
+    .tpl-item { border: 1.5px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .tpl-hdr {
+      background: var(--bg-sidebar);
+      padding: .65rem .875rem;
+      display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+      cursor: pointer; user-select: none;
+      transition: background .12s;
+    }
+    .tpl-hdr:hover { background: var(--blue-light); }
+    .tpl-hdr-left  { display: flex; align-items: center; gap: .5rem; min-width: 0; }
+    .tpl-name      { font-weight: 700; font-size: .88rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tpl-hdr-right { display: flex; align-items: center; gap: .4rem; flex-shrink: 0; }
+    .tpl-chevron   { font-size: .68rem; color: var(--text-muted); transition: transform .22s; }
+    .tpl-chevron.open { transform: rotate(180deg); }
+    .tpl-body { padding: .875rem; display: none; }
+    .tpl-body.open { display: block; }
+
+    .tpl-desc { font-size: .84rem; color: var(--text-sub); margin-bottom: .625rem; line-height: 1.55; }
+
+    .mini-conf { margin: .5rem 0 .75rem; }
+    .mini-conf .mini-track { height: 7px; background: var(--bg); border-radius: 4px; overflow: hidden; border: 1px solid var(--border); }
+    .mini-conf .mini-fill  { height: 100%; border-radius: 4px; transition: width .6s cubic-bezier(.4,0,.2,1); }
+
+    .tag-row { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .25rem; }
+    .tag {
+      font-size: .74rem; padding: 2px 9px; border-radius: 10px;
+      background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    }
+
+    .sits-list  { font-size: .83rem; color: var(--text); padding-left: 1.1rem; }
+    .sits-list li { margin-bottom: .2rem; }
+
+    .effect-list, .steps-list { padding-left: 1.1rem; }
+    .effect-list li, .steps-list li { font-size: .84rem; color: var(--text); margin-bottom: .3rem; line-height: 1.5; }
+    .effect-list li::marker { color: var(--blue); }
+    .steps-list  li::marker  { color: var(--accent); }
+
+    /* Config steps */
+    .cfg-list { display: flex; flex-direction: column; gap: .625rem; }
+    .cfg-item { border: 1.5px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .cfg-hdr {
+      background: var(--bg-sidebar); padding: .65rem .875rem;
+      display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+      cursor: pointer; user-select: none; transition: background .12s;
+    }
+    .cfg-hdr:hover { background: var(--blue-light); }
+    .cfg-name { font-weight: 700; font-size: .88rem; }
+    .cfg-chevron { font-size: .68rem; color: var(--text-muted); transition: transform .22s; }
+    .cfg-chevron.open { transform: rotate(180deg); }
+    .cfg-body { padding: .875rem; display: none; }
+    .cfg-body.open { display: block; }
+
+    /* Numbered step */
+    .step-item { display: flex; gap: .6rem; margin-bottom: .5rem; align-items: flex-start; }
+    .step-num {
+      flex-shrink: 0; width: 22px; height: 22px;
+      background: var(--blue); color: var(--white);
+      border-radius: 50%; font-size: .72rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      margin-top: 1px;
+    }
+    .step-text { font-size: .84rem; color: var(--text); line-height: 1.5; }
+
+    /* Docs card */
+    .doc-list { display: flex; flex-direction: column; gap: .5rem; }
+    .doc-item {
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: .625rem .75rem; background: var(--bg-sidebar);
+    }
+    .doc-link { color: var(--blue); font-size: .85rem; font-weight: 600; text-decoration: none; word-break: break-word; }
+    .doc-link:hover { text-decoration: underline; }
+    .doc-excerpt { font-size: .78rem; color: var(--text-sub); margin-top: 3px; line-height: 1.45; }
+    .doc-source  { font-size: .72rem; color: var(--text-muted); margin-top: 4px; }
+
+    /* Code samples */
+    .code-block {
+      background: #1e1e1e; color: #d4d4d4;
+      border-radius: 6px; padding: .75rem 1rem;
+      font-family: "Cascadia Code", "Consolas", monospace;
+      font-size: .8rem; overflow-x: auto; white-space: pre;
+      margin-bottom: .5rem; line-height: 1.55;
+    }
+
+    /* Troubleshooting */
+    .tip-list { display: flex; flex-direction: column; gap: .5rem; }
+    .tip-item {
+      display: flex; gap: .5rem; align-items: flex-start;
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: .6rem .75rem; background: var(--bg-sidebar);
+    }
+    .tip-icon { flex-shrink: 0; font-size: 1rem; line-height: 1.4; }
+    .tip-text { font-size: .84rem; color: var(--text); line-height: 1.5; }
+
+    /* Error banner */
+    .error-banner {
+      background: #fde7e9; border-left: 4px solid var(--red);
+      border-radius: var(--radius); padding: .75rem 1rem;
+      font-size: .88rem; color: var(--red); font-weight: 500;
+      display: flex; align-items: flex-start; gap: .5rem;
+    }
+
+    /* Sidebar overlay for mobile */
+    .sidebar-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.4);
+      z-index: 140;
+    }
+
+    /* ── Responsive ─────────────────────────────────────────────────── */
+    @media (max-width: 767px) {
+      .header-hamburger { display: flex; }
+      .sidebar {
+        position: fixed;
+        top: var(--header-h); left: 0; bottom: 0;
+        transform: translateX(-100%);
+        box-shadow: var(--shadow-md);
+      }
+      .sidebar.open { transform: translateX(0); }
+      .sidebar-overlay.visible { display: block; }
+      .main-content { width: 100%; }
+      .results-area { padding: 1rem .875rem; }
+      .input-dock { padding: .75rem .875rem .875rem; }
+      .header-title { font-size: .92rem; }
+    }
+    @media (max-width: 479px) {
+      .btn-simulate span.btn-label { display: none; }
+    }
+
+    /* Visually hidden (screen-reader only) */
+    .sr-only {
+      position: absolute; width: 1px; height: 1px;
+      overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────────────────────── -->
+<header class="app-header" role="banner">
+  <button class="header-hamburger" id="hamburgerBtn" aria-label="Toggle sidebar navigation" aria-expanded="false" aria-controls="sidebar">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+      <line x1="3" y1="6"  x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+    </svg>
+  </button>
+  <div class="header-logo" aria-hidden="true">
+    <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="32" height="32" rx="7" fill="white" fill-opacity=".18"/>
+      <path d="M16 4L28 10V22L16 28L4 22V10L16 4Z" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M16 4V28M4 10L28 22M28 10L4 22" stroke="white" stroke-width="1.2" stroke-linecap="round"/>
+    </svg>
+  </div>
+  <span class="header-title">Microsoft Purview Policy Simulator</span>
+  <span class="header-beta" aria-label="Beta version">Beta</span>
+  <div class="header-spacer"></div>
+  <div class="mcp-status-indicator" id="headerMcpStatus" aria-live="polite">
+    <span class="mcp-dot off" id="headerMcpDot" aria-hidden="true"></span>
+    <span id="headerMcpLabel">MCP Offline</span>
+  </div>
+</header>
+
+<!-- ── App Body ───────────────────────────────────────────────────────────── -->
+<div class="app-body">
+
+  <!-- Sidebar overlay (mobile) -->
+  <div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
+
+  <!-- ── Sidebar ────────────────────────────────────────────────────────── -->
+  <nav class="sidebar" id="sidebar" aria-label="Example prompts and settings">
+    <div class="sidebar-scroll" role="list" aria-label="Example prompt categories">
+
+      <div class="sidebar-section-label">🛡️ DLP</div>
+      <div class="chip-group">
+        <button class="chip" role="listitem" data-example="Block employees from emailing credit card numbers or bank account numbers to external recipients. We need PCI-DSS compliance.">💳 Credit card &amp; PCI-DSS</button>
+        <button class="chip" role="listitem" data-example="Prevent sharing of patient medical records and health insurance information outside the organization to comply with HIPAA.">🏥 HIPAA medical data</button>
+        <button class="chip" role="listitem" data-example="Protect personal data of EU residents such as passport numbers and national ID numbers to comply with GDPR.">🇪🇺 GDPR EU personal data</button>
+        <button class="chip" role="listitem" data-example="Block all outbound email to external recipients that contains sensitive business data or confidential documents.">📧 Block external email</button>
+      </div>
+
+      <div class="sidebar-section-label">🔒 Information Protection</div>
+      <div class="chip-group">
+        <button class="chip" role="listitem" data-example="Classify and encrypt all confidential documents and emails so only authorized internal users can open them.">🔐 Confidential document encryption</button>
+        <button class="chip" role="listitem" data-example="Automatically apply sensitivity labels to emails and documents that contain sensitive content such as financial data or personal information.">🏷️ Auto-labeling for sensitive content</button>
+      </div>
+
+      <div class="sidebar-section-label">⚠️ Insider Risk</div>
+      <div class="chip-group">
+        <button class="chip" role="listitem" data-example="Prevent employees on the HR termination list from exfiltrating sensitive data via USB drives, email, or OneDrive.">🚨 Departing employee data theft</button>
+        <button class="chip" role="listitem" data-example="Detect risky user behavior such as mass downloads, unusual access patterns, and data exfiltration attempts by current employees.">👁️ Risky user behavior detection</button>
+      </div>
+
+      <div class="sidebar-section-label">📁 Retention</div>
+      <div class="chip-group">
+        <button class="chip" role="listitem" data-example="Retain all emails and SharePoint documents for 7 years for legal and regulatory compliance purposes.">📅 7-year email retention</button>
+        <button class="chip" role="listitem" data-example="Apply a legal hold to all mailboxes and SharePoint sites involved in active litigation to preserve all content.">⚖️ Legal hold for litigation</button>
+      </div>
+
+      <div class="sidebar-section-label">🌍 Regional</div>
+      <div class="chip-group">
+        <button class="chip" role="listitem" data-example="Implement data protection controls to comply with UK GDPR requirements for personal data of UK residents.">🇬🇧 UK GDPR compliance</button>
+        <button class="chip" role="listitem" data-example="Protect personal information of Canadian residents in compliance with PIPEDA requirements.">🍁 Canada PIPEDA</button>
+        <button class="chip" role="listitem" data-example="Implement data protection policies for personal data of Brazilian residents to comply with LGPD.">🇧🇷 Brazil LGPD</button>
+      </div>
+
+      <div class="sidebar-section-label">💻 Endpoint</div>
+      <div class="chip-group">
+        <button class="chip" role="listitem" data-example="Block users from copying sensitive data to USB drives or external storage devices on managed endpoints.">🔌 USB blocking policy</button>
+        <button class="chip" role="listitem" data-example="Restrict printing of documents containing sensitive information such as financial data or personal identifiers.">🖨️ Print restriction for sensitive data</button>
+      </div>
+
+    </div><!-- /sidebar-scroll -->
+
+    <!-- Settings panel -->
+    <div class="sidebar-settings">
+      <button class="settings-toggle-btn" id="settingsToggleBtn" aria-expanded="false" aria-controls="settingsBody">
+        <span>⚙️ Settings</span>
+        <span class="s-chevron">▼</span>
+      </button>
+      <div class="settings-body" id="settingsBody" role="region" aria-label="Settings">
+        <div class="toggle-row">
+          <label class="toggle-switch" aria-label="Enable Live Microsoft Learn Documentation">
+            <input type="checkbox" id="mcpToggle" />
+            <span class="toggle-track"></span>
+          </label>
+          <div class="toggle-label">
+            <strong>Enable Live Microsoft Learn Docs</strong>
+            <span>Enriches results with official Microsoft Learn docs via MCP</span>
+          </div>
+        </div>
+        <div id="mcpStatusText" class="mcp-status-text off" aria-live="polite">
+          <span>○</span> <span id="mcpStatusLabel">Offline</span>
+        </div>
+      </div>
+    </div>
+  </nav><!-- /sidebar -->
+
+  <!-- ── Main content ─────────────────────────────────────────────────────── -->
+  <main class="main-content" aria-label="Policy simulation workspace">
+
+    <!-- Results scroll area -->
+    <div class="results-area" id="resultsArea" role="region" aria-live="polite" aria-label="Simulation results">
+
+      <!-- Welcome / empty state (hidden once results arrive) -->
+      <div class="empty-state" id="emptyState">
+        <div class="empty-state-logo" aria-hidden="true">
+          <svg width="36" height="36" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M16 4L28 10V22L16 28L4 22V10L16 4Z" stroke="#0078d4" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M16 4V28M4 10L28 22M28 10L4 22" stroke="#0078d4" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <h2>Microsoft Purview Policy Simulator</h2>
+        <p>Describe your compliance or data protection requirement below and the simulator will match it against Purview policy templates, recommend configurations, and explain expected effects.</p>
+        <p style="font-size:.8rem;color:var(--text-muted);">Select an example from the sidebar or type your own requirement to get started.</p>
+      </div>
+
+    </div><!-- /resultsArea -->
+
+    <!-- Input dock -->
+    <div class="input-dock">
+      <div class="input-dock-inner">
+        <label for="requirement" class="sr-only">Policy requirement description</label>
+        <textarea
+          id="requirement"
+          placeholder="e.g. I want to prevent employees from sending credit card numbers outside the organization and comply with PCI-DSS…"
+          aria-label="Policy requirement description"
+          rows="3"
+        ></textarea>
+        <button class="btn-simulate" id="simulateBtn" aria-label="Run policy simulation">
+          <span class="spinner" id="spinner" aria-hidden="true"></span>
+          <svg id="btnIcon" width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+          <span class="btn-label">Run Simulation</span>
+        </button>
+      </div>
+    </div>
+
+  </main><!-- /main-content -->
+
+</div><!-- /app-body -->
+
+<script>
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━ HELPERS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function uid() { return 'i' + Math.random().toString(36).slice(2,9); }
+
+/* Map confidence value → CSS class */
+function confClass(v) {
+  if (v >= 85) return 'c-green';
+  if (v >= 60) return 'c-yellow';
+  if (v >= 30) return 'c-orange';
+  return 'c-red';
+}
+function confLabel(v) {
+  if (v >= 85) return 'High confidence';
+  if (v >= 60) return 'Moderate confidence';
+  if (v >= 30) return 'Low confidence';
+  return 'Very low confidence';
+}
+
+/* Extract first URL from a block of text */
+function extractUrl(text) {
+  const m = text.match(/https?:\/\/[^\s\)\"\']+/);
+  return m ? m[0] : null;
+}
+
+/* Toggle generic accordion (section, template, config) */
+function togglePanel(bodyId, chevronId, headerEl) {
+  const body    = document.getElementById(bodyId);
+  const chevron = document.getElementById(chevronId);
+  const isOpen  = body.classList.toggle('open');
+  chevron.classList.toggle('open', isOpen);
+  if (headerEl) headerEl.setAttribute('aria-expanded', String(isOpen));
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━ BUILD HELPERS ━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/* Collapsible top-level section card */
+function makeSection(icon, title, bodyHtml, startOpen = false) {
+  const id = uid();
+  const openClass = startOpen ? ' open' : '';
+  return `
+  <div class="result-section" role="region" aria-label="${escapeHtml(title)}">
+    <div class="result-section-hdr" role="button" tabindex="0"
+      aria-expanded="${startOpen}" aria-controls="${id}-body"
+      onclick="togglePanel('${id}-body','${id}-chv',this)"
+      onkeydown="if(event.key==='Enter'||event.key===' '){togglePanel('${id}-body','${id}-chv',this);event.preventDefault();}">
+      <div class="result-section-hdr-left">
+        <span class="sec-icon" aria-hidden="true">${icon}</span>
+        ${escapeHtml(title)}
+      </div>
+      <span class="result-section-chevron${startOpen ? ' open' : ''}" id="${id}-chv" aria-hidden="true">▼</span>
+    </div>
+    <div class="result-section-body${openClass}" id="${id}-body">${bodyHtml}</div>
+  </div>`;
+}
+
+/* Confidence bar HTML */
+function makeConfBar(value, label) {
+  const cls = confClass(value);
+  const lbl = confLabel(value);
+  return `
+  <div class="conf-wrap">
+    <div class="conf-hdr">
+      <span>${escapeHtml(label)}</span>
+      <span class="conf-pct">${value}%</span>
+    </div>
+    <div class="conf-track"><div class="conf-fill ${cls}" style="width:${value}%" data-target="${value}%"></div></div>
+    <div class="conf-note">${lbl}</div>
+  </div>`;
+}
+
+/* Mini confidence bar (inside template accordion) */
+function makeMiniBar(value) {
+  const cls = confClass(value);
+  return `<div class="mini-conf">
+    <div class="mini-track"><div class="mini-fill ${cls}" style="width:${value}%" data-target="${value}%"></div></div>
+  </div>`;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━ SECTION BUILDERS ━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/* 1 — Summary card */
+function buildSummarySection(data) {
+  const isCustom     = !!data.requires_custom;
+  const bannerCls    = isCustom ? 'custom' : 'avail';
+  const bannerIcon   = isCustom ? '⚠️' : '✅';
+  const bannerTitle  = isCustom ? 'Custom Policy Required' : 'Template Available';
+
+  /* Intents */
+  const intents = (data.intents || []);
+  const intentsHtml = intents.length
+    ? `<div class="sub-label">Detected Intents</div>
+       <div class="badge-row">${intents.map(i=>`<span class="badge badge-blue">${escapeHtml(i)}</span>`).join('')}</div>`
+    : '';
+
+  /* Entities */
+  const ent = data.entities || {};
+  const allEnt = [
+    ...(ent.frameworks  || []).map(e=>`<span class="badge badge-purple">${escapeHtml(e)}</span>`),
+    ...(ent.data_types  || []).map(e=>`<span class="badge badge-teal">${escapeHtml(e)}</span>`),
+    ...(ent.workloads   || []).map(e=>`<span class="badge badge-gray">${escapeHtml(e)}</span>`),
+    ...(ent.risk_scenarios||[]).map(e=>`<span class="badge badge-amber">${escapeHtml(e)}</span>`),
+  ];
+  const entitiesHtml = allEnt.length
+    ? `<div class="sub-label">Detected Entities</div>
+       <div class="badge-row">${allEnt.join('')}</div>`
+    : '';
+
+  /* Keywords */
+  const kws = (data.matched_keywords || []);
+  const kwHtml = kws.length
+    ? `<div class="sub-label">Matched Keywords</div>
+       <div class="badge-row">${kws.map(k=>`<span class="badge badge-gray">${escapeHtml(k)}</span>`).join('')}</div>`
+    : '';
+
+  /* Confidence reasoning */
+  const reasonHtml = data.confidence_reasoning
+    ? `<div class="sub-label">Confidence Reasoning</div>
+       <p style="font-size:.82rem;color:var(--text-sub);line-height:1.5;">${escapeHtml(data.confidence_reasoning)}</p>`
+    : '';
+
+  /* Combination note */
+  const comboHtml = data.combination_note
+    ? `<div class="sub-label">Combination Note</div>
+       <p style="font-size:.82rem;color:var(--text-sub);line-height:1.5;">${escapeHtml(data.combination_note)}</p>`
+    : '';
+
+  /* Gap analysis */
+  const gaps = (data.coverage_gaps || []);
+  const gapsHtml = (isCustom && gaps.length)
+    ? `<div class="sub-label">Gap Analysis</div>
+       <ul class="gap-list">${gaps.map(g=>`<li>${escapeHtml(g)}</li>`).join('')}</ul>`
+    : '';
+
+  const body = `
+    <div class="summary-banner ${bannerCls}">
+      <span class="s-icon" aria-hidden="true">${bannerIcon}</span>
+      <div class="s-body">
+        <strong>${bannerTitle}</strong>
+        ${escapeHtml(data.summary || '')}
+      </div>
+    </div>
+    ${makeConfBar(data.overall_confidence || 0, 'Overall Confidence Score')}
+    ${intentsHtml}
+    ${entitiesHtml}
+    ${kwHtml}
+    ${reasonHtml}
+    ${comboHtml}
+    ${gapsHtml}
+  `;
+  return makeSection('📊', 'Simulation Summary', body, true);
+}
+
+/* 2 — Template Matches card */
+function buildTemplatesSection(data) {
+  const templates = data.matched_templates || [];
+  if (!templates.length) return '';
+
+  const items = templates.map(tpl => {
+    const id   = uid();
+    const avail = tpl.template_available;
+
+    /* Workloads */
+    const wls = (tpl.workloads || []).map(w=>`<span class="tag">${escapeHtml(w)}</span>`).join('');
+
+    /* SITs */
+    const sitsHtml = (tpl.sensitive_info_types || []).length
+      ? `<div class="sub-label">Sensitive Information Types</div>
+         <ul class="sits-list">${tpl.sensitive_info_types.map(s=>`<li>${escapeHtml(s)}</li>`).join('')}</ul>`
+      : '';
+
+    /* Actions */
+    const actionsHtml = (tpl.default_actions || []).length
+      ? `<div class="sub-label">Default Actions</div>
+         <ul class="effect-list">${tpl.default_actions.map(a=>`<li>${escapeHtml(a)}</li>`).join('')}</ul>`
+      : '';
+
+    /* Effects */
+    const effectsHtml = (tpl.expected_effects || []).length
+      ? `<div class="sub-label">Expected Effects</div>
+         <ul class="effect-list">${tpl.expected_effects.map(e=>`<li>${escapeHtml(e)}</li>`).join('')}</ul>`
+      : '';
+
+    /* Matched keywords */
+    const mkw = (tpl.matched_keywords || []);
+    const mkwHtml = mkw.length
+      ? `<div class="sub-label">Matched Keywords</div>
+         <div class="badge-row">${mkw.map(k=>`<span class="badge badge-gray">${escapeHtml(k)}</span>`).join('')}</div>`
+      : '';
+
+    const catStr = tpl.category + (tpl.subcategory ? ' › ' + tpl.subcategory : '');
+
+    return `
+    <div class="tpl-item">
+      <div class="tpl-hdr" role="button" tabindex="0"
+        aria-expanded="false" aria-controls="${id}-body"
+        onclick="togglePanel('${id}-body','${id}-chv',this)"
+        onkeydown="if(event.key==='Enter'||event.key===' '){togglePanel('${id}-body','${id}-chv',this);event.preventDefault();}">
+        <div class="tpl-hdr-left">
+          <span class="badge badge-cat">${escapeHtml(catStr)}</span>
+          <span class="tpl-name">${escapeHtml(tpl.name)}</span>
+        </div>
+        <div class="tpl-hdr-right">
+          <span class="badge ${avail ? 'badge-avail' : 'badge-custom'}">${avail ? 'Template Available' : 'Custom Required'}</span>
+          <span class="tpl-chevron" id="${id}-chv" aria-hidden="true">▼</span>
+        </div>
+      </div>
+      <div class="tpl-body" id="${id}-body">
+        <p class="tpl-desc">${escapeHtml(tpl.description || '')}</p>
+        ${makeConfBar(tpl.confidence || 0, 'Template Confidence')}
+        <div class="sub-label">Workloads</div>
+        <div class="tag-row">${wls}</div>
+        ${sitsHtml}
+        ${actionsHtml}
+        ${effectsHtml}
+        ${mkwHtml}
+      </div>
+    </div>`;
+  }).join('');
+
+  return makeSection('📋', `Template Matches (${templates.length})`, `<div class="tpl-list">${items}</div>`, true);
+}
+
+/* 3 — Custom Configuration card */
+function buildCustomSection(data) {
+  if (!data.requires_custom) return '';
+  const cfgs = data.custom_configs || [];
+  if (!cfgs.length) return '';
+
+  const items = cfgs.map(cfg => {
+    const id = uid();
+    const stepsHtml = (cfg.configuration_steps || [])
+      .map((s, i) => `<div class="step-item"><span class="step-num">${i+1}</span><span class="step-text">${escapeHtml(s)}</span></div>`)
+      .join('');
+    const whenHtml = cfg.when_to_use
+      ? `<div class="sub-label">When to Use</div>
+         <p style="font-size:.83rem;color:var(--text-sub);line-height:1.5;margin-bottom:.5rem;">${escapeHtml(cfg.when_to_use)}</p>`
+      : '';
+    return `
+    <div class="cfg-item">
+      <div class="cfg-hdr" role="button" tabindex="0"
+        aria-expanded="false" aria-controls="${id}-body"
+        onclick="togglePanel('${id}-body','${id}-chv',this)"
+        onkeydown="if(event.key==='Enter'||event.key===' '){togglePanel('${id}-body','${id}-chv',this);event.preventDefault();}">
+        <span class="cfg-name">${escapeHtml(cfg.name || 'Configuration')}</span>
+        <span class="cfg-chevron" id="${id}-chv" aria-hidden="true">▼</span>
+      </div>
+      <div class="cfg-body" id="${id}-body">
+        <p style="font-size:.83rem;color:var(--text-sub);line-height:1.5;margin-bottom:.625rem;">${escapeHtml(cfg.description || '')}</p>
+        ${whenHtml}
+        <div class="sub-label">Implementation Steps</div>
+        ${stepsHtml}
+      </div>
+    </div>`;
+  }).join('');
+
+  return makeSection('🔧', 'Custom Configuration', `<div class="cfg-list">${items}</div>`);
+}
+
+/* 4 — Documentation Links card */
+function buildDocsSection(data) {
+  const docs = data.mcp_docs || [];
+  if (!docs.length) return '';
+
+  const items = docs.map(doc => {
+    const text = (doc.text || '').trim();
+    if (!text) return '';
+    const url  = extractUrl(text);
+    const excerpt = text.replace(/https?:\/\/[^\s]+/g, '').trim().slice(0, 200);
+    return `
+    <div class="doc-item">
+      ${url ? `<a class="doc-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a>` : ''}
+      ${excerpt ? `<div class="doc-excerpt">${escapeHtml(excerpt)}${excerpt.length >= 200 ? '…' : ''}</div>` : ''}
+      <div class="doc-source">from Microsoft Learn via MCP</div>
+    </div>`;
+  }).filter(Boolean).join('');
+
+  if (!items) return '';
+  return makeSection('📚', 'Documentation Links', `<div class="doc-list">${items}</div>`);
+}
+
+/* 5 — Code Samples card */
+function buildCodeSection(data) {
+  const samples = data.mcp_code_samples || [];
+  if (!samples.length) return '';
+
+  const blocks = samples.map(s => {
+    const text = (s.text || '').trim();
+    if (!text) return '';
+    return `<pre class="code-block" tabindex="0" aria-label="Code sample">${escapeHtml(text)}</pre>`;
+  }).filter(Boolean).join('');
+
+  if (!blocks) return '';
+  return makeSection('⚡', 'Code Samples', blocks);
+}
+
+/* 6 — Troubleshooting Tips card */
+function buildTroubleshootingSection(data) {
+  const templates = data.matched_templates || [];
+  const tips = templates.flatMap(t => t.troubleshooting_tips || []).filter(Boolean);
+  if (!tips.length) return '';
+
+  const items = tips.map(tip =>
+    `<div class="tip-item"><span class="tip-icon" aria-hidden="true">💡</span><span class="tip-text">${escapeHtml(tip)}</span></div>`
+  ).join('');
+
+  return makeSection('🔍', 'Troubleshooting Tips', `<div class="tip-list">${items}</div>`);
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━ MAIN RENDER ━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function renderResults(data) {
+  const area = document.getElementById('resultsArea');
+
+  /* Hide empty state */
+  const es = document.getElementById('emptyState');
+  if (es) es.style.display = 'none';
+
+  /* Remove previous result sections */
+  area.querySelectorAll('.result-section, .error-banner').forEach(el => el.remove());
+
+  const sections = [
+    buildSummarySection(data),
+    buildTemplatesSection(data),
+    buildCustomSection(data),
+    buildDocsSection(data),
+    buildCodeSection(data),
+    buildTroubleshootingSection(data),
+  ].filter(Boolean).join('');
+
+  area.insertAdjacentHTML('beforeend', sections);
+
+  /* Animate confidence bars after DOM insertion */
+  requestAnimationFrame(() => {
+    area.querySelectorAll('.conf-fill, .mini-fill').forEach(el => {
+      const target = el.dataset.target || el.style.width || '0%';
+      el.style.width = '0%';
+      requestAnimationFrame(() => { el.style.width = target; });
+    });
+  });
+
+  /* Scroll results area to top */
+  area.scrollTop = 0;
+}
+
+function renderError(msg) {
+  const area = document.getElementById('resultsArea');
+  const es   = document.getElementById('emptyState');
+  if (es) es.style.display = 'none';
+  area.querySelectorAll('.result-section, .error-banner').forEach(el => el.remove());
+  area.insertAdjacentHTML('beforeend',
+    `<div class="error-banner" role="alert"><span aria-hidden="true">❌</span> ${escapeHtml(msg)}</div>`);
+  area.scrollTop = 0;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━ SIMULATE BUTTON ━━━━━━━━━━━━━━━━━━━━━━━━━ */
+let useMcp = false;
+
+document.getElementById('simulateBtn').addEventListener('click', async () => {
+  const req = document.getElementById('requirement').value.trim();
+  if (!req) { document.getElementById('requirement').focus(); return; }
+
+  const btn     = document.getElementById('simulateBtn');
+  const spinner = document.getElementById('spinner');
+  const btnIcon = document.getElementById('btnIcon');
+
+  btn.disabled            = true;
+  spinner.style.display   = 'block';
+  btnIcon.style.display   = 'none';
+
+  try {
+    const resp = await fetch('/api/simulate', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ requirement: req, use_mcp: useMcp }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Simulation failed. Please try again.');
+    renderResults(data);
+  } catch (err) {
+    renderError(err.message);
+  } finally {
+    btn.disabled          = false;
+    spinner.style.display = 'none';
+    btnIcon.style.display = 'block';
+  }
+});
+
+/* Submit on Ctrl+Enter / Cmd+Enter */
+document.getElementById('requirement').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    document.getElementById('simulateBtn').click();
+  }
+});
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━ EXAMPLE CHIPS ━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+document.querySelectorAll('.chip[data-example]').forEach(chip => {
+  const fill = () => {
+    const ta = document.getElementById('requirement');
+    ta.value = chip.dataset.example;
+    ta.focus();
+    /* On mobile, close sidebar after selection */
+    closeSidebar();
+    /* Scroll textarea into view */
+    ta.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  };
+  chip.addEventListener('click', fill);
+  chip.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fill(); } });
+});
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━ MCP TOGGLE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function updateMcpUi(enabled) {
+  useMcp = enabled;
+
+  /* Header dot */
+  const dot   = document.getElementById('headerMcpDot');
+  const label = document.getElementById('headerMcpLabel');
+  dot.className   = 'mcp-dot ' + (enabled ? 'on' : 'off');
+  label.textContent = enabled ? 'MCP Connected' : 'MCP Offline';
+
+  /* Sidebar status text */
+  const st  = document.getElementById('mcpStatusText');
+  const stl = document.getElementById('mcpStatusLabel');
+  st.className      = 'mcp-status-text ' + (enabled ? 'on' : 'off');
+  st.firstElementChild.textContent = enabled ? '●' : '○';
+  stl.textContent   = enabled ? 'Connected' : 'Offline';
+}
+
+document.getElementById('mcpToggle').addEventListener('change', e => {
+  updateMcpUi(e.target.checked);
+});
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━ SETTINGS PANEL ━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+document.getElementById('settingsToggleBtn').addEventListener('click', () => {
+  const btn  = document.getElementById('settingsToggleBtn');
+  const body = document.getElementById('settingsBody');
+  const open = body.classList.toggle('open');
+  btn.classList.toggle('open', open);
+  btn.setAttribute('aria-expanded', String(open));
+});
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━ SIDEBAR (MOBILE) ━━━━━━━━━━━━━━━━━━━━━━━━ */
+function openSidebar() {
+  const sb  = document.getElementById('sidebar');
+  const ov  = document.getElementById('sidebarOverlay');
+  const hbr = document.getElementById('hamburgerBtn');
+  sb.classList.add('open');
+  ov.classList.add('visible');
+  ov.setAttribute('aria-hidden', 'false');
+  hbr.setAttribute('aria-expanded', 'true');
+  sb.querySelector('.chip')?.focus();
+}
+
+function closeSidebar() {
+  const sb  = document.getElementById('sidebar');
+  const ov  = document.getElementById('sidebarOverlay');
+  const hbr = document.getElementById('hamburgerBtn');
+  if (!sb.classList.contains('open')) return;
+  sb.classList.remove('open');
+  ov.classList.remove('visible');
+  ov.setAttribute('aria-hidden', 'true');
+  hbr.setAttribute('aria-expanded', 'false');
+  hbr.focus();
+}
+
+document.getElementById('hamburgerBtn').addEventListener('click', () => {
+  document.getElementById('sidebar').classList.contains('open') ? closeSidebar() : openSidebar();
+});
+
+document.getElementById('sidebarOverlay').addEventListener('click', closeSidebar);
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeSidebar();
+});
+</script>
+</body>
+</html>
