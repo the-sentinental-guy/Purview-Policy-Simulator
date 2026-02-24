@@ -778,6 +778,29 @@ kbd {
   gap: 8px;
 }
 
+.custom-config-warning {
+  padding: 10px 14px;
+  background: #fff4ce;
+  border: 1px solid #f0c330;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: #6a4e00;
+  margin-bottom: 4px;
+}
+
+.inline-mcp-docs {
+  padding: 8px 12px;
+  border-top: 1px solid var(--color-border-light);
+  margin-top: 4px;
+  font-size: var(--font-size-sm);
+}
+
+.inline-mcp-link {
+  display: inline-flex;
+  padding: 4px 8px;
+  margin-top: 4px;
+}
+
 .config-item {
   display: grid;
   grid-template-columns: max-content 1fr;

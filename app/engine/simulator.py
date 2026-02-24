@@ -16,7 +16,7 @@ from .nlp_processor import NLPProcessor
 
 
 # Confidence threshold below which a custom configuration is also generated
-_CUSTOM_CONFIG_THRESHOLD = 0.40
+_CUSTOM_CONFIG_THRESHOLD = 0.70
 
 
 class PolicySimulator:
@@ -96,6 +96,7 @@ class PolicySimulator:
         actions = self._default_actions_for_intent(intent)
 
         steps = [
+            "Note: This is a suggested configuration. Verify all settings against official Microsoft documentation before deploying.",
             "Open the Microsoft Purview compliance portal (compliance.microsoft.com).",
             "Navigate to Data loss prevention > Policies > Create policy.",
             "Choose 'Custom policy' as the template.",
@@ -110,7 +111,7 @@ class PolicySimulator:
         gap_analysis = self._build_gap_analysis(entities, frameworks)
 
         return CustomConfiguration(
-            title=f"Custom DLP Policy – {intent.capitalize()} Sensitive Data",
+            title=f"⚠️ Suggested Starting Point — Custom DLP Policy – {intent.capitalize()} Sensitive Data",
             steps=steps,
             locations=locations,
             sensitive_info_types=sensitive_info_types,

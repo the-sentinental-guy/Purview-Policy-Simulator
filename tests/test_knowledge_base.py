@@ -23,6 +23,15 @@ def test_dlp_template_structure():
         assert len(t.keywords) >= 5, f"Template {t.id} needs at least 5 keywords"
 
 
+def test_dlp_template_source_url():
+    """Every template must have a non-empty source_url pointing to Microsoft Learn."""
+    for t in get_dlp_templates():
+        assert t.source_url, f"Template {t.id} is missing source_url"
+        assert t.source_url.startswith("https://learn.microsoft.com/"), (
+            f"Template {t.id} source_url should point to Microsoft Learn, got: {t.source_url}"
+        )
+
+
 def test_dlp_template_categories():
     """Templates cover all required categories."""
     templates = get_dlp_templates()

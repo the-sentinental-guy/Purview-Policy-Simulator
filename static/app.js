@@ -81,7 +81,7 @@ async function checkMCPStatus() {
   text.textContent = 'Checking MCP…';
 
   try {
-    const res  = await fetch(`${API_BASE}/mcp/status`);
+    const res  = await fetch(`${API_BASE}mcp/status`);
     const data = await res.json();
     state.mcpAvailable = data.available === true;
 
@@ -103,7 +103,7 @@ async function checkMCPStatus() {
 async function loadCategories() {
   const list = $('categories-list');
   try {
-    const res  = await fetch(`${API_BASE}/templates/categories`);
+    const res  = await fetch(`${API_BASE}templates/categories`);
     const data = await res.json();
     const cats = Array.isArray(data) ? data : (data.categories || []);
 
@@ -182,7 +182,7 @@ async function simulate(query) {
   resultsArea.insertBefore(loadingEl, resultsArea.firstChild);
 
   try {
-    const response = await fetch(`${API_BASE}/simulate`, {
+    const response = await fetch(`${API_BASE}simulate`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({
@@ -263,8 +263,11 @@ function renderResults(data, query) {
 
   // Template matches
   if (data.template_matches && data.template_matches.length > 0) {
-    data.template_matches.forEach(match => {
-      body.appendChild(renderTemplateMatch(match));
+    const docLinks = (data.mcp_enriched && data.documentation_links) ? data.documentation_links : [];
+    data.template_matches.forEach((match, idx) => {
+      // Only attach MCP doc links inline to the first template match card
+      const linksForMatch = idx === 0 ? docLinks : [];
+      body.appendChild(renderTemplateMatch(match, linksForMatch));
     });
   }
 
@@ -296,7 +299,7 @@ function renderResults(data, query) {
 }
 
 // ── Render template match ─────────────────────────────────
-function renderTemplateMatch(match) {
+function renderTemplateMatch(match, docLinks) {
   const conf   = match.confidence || {};
   const tmpl   = match.template   || {};
   const score  = conf.score;
@@ -326,15 +329,31 @@ function renderTemplateMatch(match) {
       ${conf.reasoning   ? `<span class="tm-label">Reasoning</span><span class="tm-value">${escHtml(conf.reasoning)}</span>` : ''}
       ${frameworks       ? `<span class="tm-label">Frameworks</span><span class="tm-value">${escHtml(frameworks)}</span>` : ''}
       ${locations        ? `<span class="tm-label">Locations</span><span class="tm-value">${escHtml(locations)}</span>` : ''}
+      ${tmpl.source_url  ? `<span class="tm-label">Reference</span><span class="tm-value"><a href="${sanitizeUrl(tmpl.source_url)}" target="_blank" rel="noopener noreferrer">📄 Microsoft Learn Reference</a></span>` : ''}
     </div>
     ${tagsHtml}
+    ${renderInlineMCPLinks(docLinks)}
     `,
     true
   );
   return section;
 }
 
-// ── Render effects ────────────────────────────────────────
+// ── Render inline MCP documentation links ────────────────
+function renderInlineMCPLinks(links) {
+  if (!links || links.length === 0) return '';
+  const items = links.map(link => {
+    const url   = typeof link === 'string' ? link : (link.url || '#');
+    const title = typeof link === 'string' ? url  : (link.title || url);
+    const safeUrl = sanitizeUrl(url);
+    return `<a class="doc-link-item inline-mcp-link" href="${safeUrl}" target="_blank" rel="noopener noreferrer">
+      <span class="doc-link-title">${escHtml(title)}</span>
+    </a>`;
+  }).join('');
+  return `<div class="inline-mcp-docs"><strong>📚 Live MS Learn Docs:</strong><div class="doc-links">${items}</div></div>`;
+}
+
+
 function renderEffects(effects) {
   if (!effects) return document.createDocumentFragment();
 
@@ -415,7 +434,7 @@ function renderConfidenceBadge(score, level) {
 // ── Render custom config ──────────────────────────────────
 function renderCustomConfig(config) {
   // Build readable sections from CustomConfiguration fields
-  let html = '';
+  let html = '<div class="custom-config-warning">⚠️ <strong>Suggested Starting Point Only.</strong> Verify all settings against official Microsoft documentation before deploying to production.</div>';
   if (config.title)       html += `<div class="config-item"><span class="config-key">Title</span><span class="config-value">${escHtml(config.title)}</span></div>`;
   if (config.locations?.length)    html += `<div class="config-item"><span class="config-key">Locations</span><span class="config-value">${escHtml(config.locations.join(', '))}</span></div>`;
   if (config.sensitive_info_types?.length) html += `<div class="config-item"><span class="config-key">Sensitive Info Types</span><span class="config-value">${escHtml(config.sensitive_info_types.join(', '))}</span></div>`;

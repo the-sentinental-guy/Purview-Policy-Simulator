@@ -40,19 +40,19 @@ def test_list_categories():
 
 def test_simulate_basic():
     response = client.post("/simulate", json={
-        "query": "prevent credit card numbers from being shared via email",
+        "query": "PCI DSS payment card industry data security standard credit card CVV",
         "use_mcp": False
     })
     assert response.status_code == 200
     data = response.json()
-    assert data["query"] == "prevent credit card numbers from being shared via email"
+    assert data["query"] == "PCI DSS payment card industry data security standard credit card CVV"
     assert "template_matches" in data
     assert len(data["template_matches"]) >= 1
 
 
 def test_simulate_hipaa():
     response = client.post("/simulate", json={
-        "query": "protect HIPAA PHI data in SharePoint",
+        "query": "HIPAA protected health information PHI patient records SharePoint",
         "use_mcp": False
     })
     assert response.status_code == 200
