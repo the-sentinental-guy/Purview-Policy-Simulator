@@ -92,7 +92,7 @@ class PolicyMatcher:
 
         results: List[TemplateMatch] = []
         for boosted_score, _, kw_matches, fw_matches, template in top:
-            if boosted_score < 0.01:
+            if boosted_score < 0.70:
                 continue
             confidence = self._calculate_confidence(
                 similarity=boosted_score,

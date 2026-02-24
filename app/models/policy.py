@@ -32,3 +32,10 @@ class PolicyTemplate(BaseModel):
     compliance_frameworks: List[str] = []
     severity: str = "medium"
     tags: List[str] = []
+    source_url: str = ""
+    specific_blocked_actions: List[str] = []
+    specific_audit_actions: List[str] = []
+    specific_notifications: List[str] = []
+    specific_user_experience: str = ""
+    specific_admin_experience: str = ""
+    specific_policy_tips: List[str] = []

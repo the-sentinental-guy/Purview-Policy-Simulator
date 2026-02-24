@@ -44,13 +44,37 @@ class EffectsCalculator:
         template = primary.template
         severity = template.severity.lower()
 
-        blocked_actions = self._blocked_actions(template, intent)
-        audited_actions = self._audited_actions(template)
-        notifications = self._notifications(template, severity)
-        policy_tips = self._policy_tips(template)
+        blocked_actions = (
+            list(template.specific_blocked_actions)
+            if template.specific_blocked_actions
+            else self._blocked_actions(template, intent)
+        )
+        audited_actions = (
+            list(template.specific_audit_actions)
+            if template.specific_audit_actions
+            else self._audited_actions(template)
+        )
+        notifications = (
+            list(template.specific_notifications)
+            if template.specific_notifications
+            else self._notifications(template, severity)
+        )
+        policy_tips = (
+            list(template.specific_policy_tips)
+            if template.specific_policy_tips
+            else self._policy_tips(template)
+        )
         incident_reports = self._incident_reports(template, severity)
-        user_experience = self._user_experience(intent, severity)
-        admin_experience = self._admin_experience(severity, template.name)
+        user_experience = (
+            template.specific_user_experience
+            if template.specific_user_experience
+            else self._user_experience(intent, severity)
+        )
+        admin_experience = (
+            template.specific_admin_experience
+            if template.specific_admin_experience
+            else self._admin_experience(severity, template.name)
+        )
         false_positive_risk = self._false_positive_risk(primary.confidence.score)
         deployment_recs = list(
             self._SEVERITY_RECOMMENDATIONS.get(severity, self._SEVERITY_RECOMMENDATIONS["medium"])
