@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Purview Policy Simulator</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <div class="layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-icon">🛡️</div>
+                <div>
+                    <h1 class="app-title">Purview Policy Simulator</h1>
+                    <p class="app-subtitle">Microsoft Purview DLP Intelligence</p>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3 class="section-title">Example Queries</h3>
+                <ul class="example-list">
+                    <li class="example-item" onclick="setQuery(this.textContent.trim())">
+                        Prevent credit card numbers from being emailed externally
+                    </li>
+                    <li class="example-item" onclick="setQuery(this.textContent.trim())">
+                        HIPAA compliance for medical records in SharePoint
+                    </li>
+                    <li class="example-item" onclick="setQuery(this.textContent.trim())">
+                        Protect source code from departing employees
+                    </li>
+                    <li class="example-item" onclick="setQuery(this.textContent.trim())">
+                        GDPR data protection for EU customer PII
+                    </li>
+                    <li class="example-item" onclick="setQuery(this.textContent.trim())">
+                        Detect SSN in Teams messages
+                    </li>
+                </ul>
+            </div>
+
+            <div class="sidebar-section">
+                <h3 class="section-title">Policy Categories</h3>
+                <ul class="category-list" id="categoryList">
+                    <li>Financial</li>
+                    <li>Healthcare</li>
+                    <li>Privacy/PII</li>
+                    <li>Regional Compliance</li>
+                    <li>Intellectual Property</li>
+                    <li>General</li>
+                </ul>
+            </div>
+
+            <div class="sidebar-footer">
+                <label class="toggle-label">
+                    <input type="checkbox" id="mcpToggle" checked>
+                    <span class="toggle-switch"></span>
+                    <span class="toggle-text">Microsoft Docs Integration (MCP)</span>
+                </label>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-area" id="contentArea">
+                <div class="welcome-screen" id="welcomeScreen">
+                    <div class="welcome-icon">🛡️</div>
+                    <h2 class="welcome-title">Purview Policy Simulator</h2>
+                    <p class="welcome-desc">
+                        Describe your data protection scenario in plain English. The simulator will
+                        match your query to Microsoft Purview DLP policy templates using NLP and
+                        show you exactly what effects the policy will have.
+                    </p>
+                    <div class="welcome-chips">
+                        <span class="chip" onclick="setQuery('Prevent credit card numbers from being emailed externally')">💳 PCI DSS</span>
+                        <span class="chip" onclick="setQuery('HIPAA compliance for medical records in SharePoint')">🏥 HIPAA</span>
+                        <span class="chip" onclick="setQuery('GDPR data protection for EU customer PII')">🇪🇺 GDPR</span>
+                        <span class="chip" onclick="setQuery('Protect source code from departing employees')">💻 IP Protection</span>
+                    </div>
+                </div>
+
+                <div id="resultsContainer" class="results-container hidden"></div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="input-area">
+                <div class="input-wrapper">
+                    <textarea
+                        id="queryInput"
+                        class="query-input"
+                        placeholder="Describe your data protection scenario... e.g., 'Prevent SSNs from being shared via email or Teams'"
+                        rows="2"
+                        onkeydown="handleKeydown(event)"
+                    ></textarea>
+                    <button class="submit-btn" id="submitBtn" onclick="submitQuery()">
+                        <span id="btnText">Simulate</span>
+                        <span id="btnSpinner" class="btn-spinner hidden"></span>
+                    </button>
+                </div>
+                <p class="input-hint">Press Ctrl+Enter to submit • Results use TF-IDF matching + NLP analysis</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- Error Toast -->
+    <div id="errorToast" class="error-toast hidden"></div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
