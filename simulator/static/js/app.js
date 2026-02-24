@@ -355,8 +355,10 @@ function buildRefsTab(tmpl, mcpRefs, id) {
 // ─── Tab switching ────────────────────────────────────────
 function switchTab(cardId, tabName, btn) {
     // Deactivate all tabs and buttons for this card
-    document.querySelectorAll(`[id^="${cardId}-config"], [id^="${cardId}-effects"], [id^="${cardId}-refs"]`)
-        .forEach(el => el.classList.remove('active'));
+    ['config', 'effects', 'refs'].forEach(tab => {
+        const el = document.getElementById(`${cardId}-${tab}`);
+        if (el) el.classList.remove('active');
+    });
 
     const tabsEl = document.getElementById(`${cardId}-tabs`);
     if (tabsEl) {
@@ -391,11 +393,22 @@ function setLoadingState(loading) {
     }
 }
 
-// ─── Error Toast ──────────────────────────────────────────
+// ─── Toasts ───────────────────────────────────────────────
 function showError(msg) {
     errorToast.textContent = msg;
+    errorToast.style.background = '';  // default (error) colour
     errorToast.classList.remove('hidden');
     setTimeout(() => errorToast.classList.add('hidden'), 5000);
+}
+
+function showSuccess(msg) {
+    errorToast.textContent = msg;
+    errorToast.style.background = '#107C10';
+    errorToast.classList.remove('hidden');
+    setTimeout(() => {
+        errorToast.classList.add('hidden');
+        errorToast.style.background = '';
+    }, 3000);
 }
 
 function hideError() {
@@ -431,6 +444,6 @@ function fpRiskIcon(risk) {
 // ─── Copy to clipboard ────────────────────────────────────
 function copyToClipboard(text) {
     navigator.clipboard.writeText(text).then(() => {
-        showError('Copied to clipboard!');
+        showSuccess('Copied to clipboard!');
     }).catch(() => {});
 }

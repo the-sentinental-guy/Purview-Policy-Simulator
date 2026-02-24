@@ -45,9 +45,7 @@ class EffectsGenerator:
         }
 
         sensitive_count = conditions.get("content_count", {}).get("min", 1)
-        if sensitive_count >= 5:
-            fp_risk = "LOW"
-        elif sensitive_count >= 2:
+        if sensitive_count >= 2:
             fp_risk = "LOW"
         else:
             fp_risk = "MEDIUM"
