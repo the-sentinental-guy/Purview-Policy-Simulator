@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Purview Policy Simulator</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Left Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="app-logo">
+          <svg class="logo-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect x="2" y="2" width="9" height="9" rx="1.5" fill="#0078d4"/>
+            <rect x="13" y="2" width="9" height="9" rx="1.5" fill="#50b6e8"/>
+            <rect x="2" y="13" width="9" height="9" rx="1.5" fill="#50b6e8"/>
+            <rect x="13" y="13" width="9" height="9" rx="1.5" fill="#0078d4"/>
+          </svg>
+          <div class="app-title-group">
+            <span class="app-title">Purview</span>
+            <span class="app-subtitle">Policy Simulator</span>
+          </div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <!-- Example Prompts -->
+        <div class="sidebar-section" id="section-examples">
+          <button class="sidebar-section-toggle" aria-expanded="true" aria-controls="examples-content">
+            <span class="section-icon">💡</span>
+            <span class="section-label">Example Prompts</span>
+            <svg class="chevron" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4.293 5.293a1 1 0 011.414 0L8 7.586l2.293-2.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"/></svg>
+          </button>
+          <div class="sidebar-section-content" id="examples-content">
+            <div class="prompt-category">
+              <span class="category-label">DLP</span>
+              <div class="chip-group">
+                <button class="chip" data-prompt="Prevent sharing credit card numbers via email and Teams">Credit card DLP</button>
+                <button class="chip" data-prompt="Block SSN in SharePoint documents">Block SSN in SharePoint</button>
+                <button class="chip" data-prompt="Protect HIPAA PHI data">HIPAA PHI protection</button>
+              </div>
+            </div>
+            <div class="prompt-category">
+              <span class="category-label">Data Protection</span>
+              <div class="chip-group">
+                <button class="chip" data-prompt="Apply confidential labels to financial documents">Label financial docs</button>
+                <button class="chip" data-prompt="Auto-label documents with PII">Auto-label PII docs</button>
+                <button class="chip" data-prompt="Encrypt emails for external recipients">Encrypt external emails</button>
+              </div>
+            </div>
+            <div class="prompt-category">
+              <span class="category-label">Insider Risk</span>
+              <div class="chip-group">
+                <button class="chip" data-prompt="Detect data theft by departing employees">Departing employee risk</button>
+                <button class="chip" data-prompt="Monitor risky browser usage">Risky browser usage</button>
+                <button class="chip" data-prompt="Alert on cumulative data exfiltration">Cumulative exfiltration</button>
+              </div>
+            </div>
+            <div class="prompt-category">
+              <span class="category-label">Retention</span>
+              <div class="chip-group">
+                <button class="chip" data-prompt="Retain financial records for 7 years">7-year financial retention</button>
+                <button class="chip" data-prompt="Delete temporary files after 30 days">30-day temp file deletion</button>
+                <button class="chip" data-prompt="Event-based retention for contracts">Contract event retention</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Template Categories -->
+        <div class="sidebar-section" id="section-categories">
+          <button class="sidebar-section-toggle" aria-expanded="true" aria-controls="categories-content">
+            <span class="section-icon">📂</span>
+            <span class="section-label">Template Categories</span>
+            <svg class="chevron" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4.293 5.293a1 1 0 011.414 0L8 7.586l2.293-2.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"/></svg>
+          </button>
+          <div class="sidebar-section-content" id="categories-content">
+            <div id="categories-list" class="categories-list">
+              <div class="skeleton-chip"></div>
+              <div class="skeleton-chip"></div>
+              <div class="skeleton-chip"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Settings -->
+        <div class="sidebar-section" id="section-settings">
+          <button class="sidebar-section-toggle" aria-expanded="true" aria-controls="settings-content">
+            <span class="section-icon">⚙️</span>
+            <span class="section-label">Settings</span>
+            <svg class="chevron" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4.293 5.293a1 1 0 011.414 0L8 7.586l2.293-2.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"/></svg>
+          </button>
+          <div class="sidebar-section-content" id="settings-content">
+            <div class="setting-row">
+              <div class="setting-info">
+                <span class="setting-label">Live MS Learn Docs</span>
+                <span class="setting-description">Fetch live documentation via MCP</span>
+              </div>
+              <label class="toggle-switch" aria-label="Enable Live MS Learn Docs">
+                <input type="checkbox" id="mcp-toggle" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="mcp-status-row" id="mcp-status-row">
+              <span class="status-dot" id="mcp-status-dot" aria-label="MCP status"></span>
+              <span class="status-text" id="mcp-status-text">Checking MCP…</span>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <span class="version-label">Microsoft Purview Policy Simulator</span>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content" id="main-content">
+      <header class="main-header">
+        <div class="header-inner">
+          <div class="header-text">
+            <h1 class="header-title">Policy Simulator</h1>
+            <p class="header-subtitle">Describe your compliance scenario and get instant policy recommendations</p>
+          </div>
+          <button class="sidebar-toggle-btn" id="sidebar-toggle" aria-label="Toggle sidebar" aria-expanded="true">
+            <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <div class="results-area" id="results-area" role="log" aria-live="polite" aria-label="Simulation results">
+        <div class="empty-state" id="empty-state">
+          <div class="empty-state-icon" aria-hidden="true">🛡️</div>
+          <h2 class="empty-state-title">Ready to simulate</h2>
+          <p class="empty-state-desc">Enter a compliance scenario below or pick an example prompt from the sidebar to get started.</p>
+        </div>
+      </div>
+
+      <div class="input-area">
+        <div class="input-container">
+          <textarea
+            id="query-input"
+            class="query-input"
+            placeholder="Describe your compliance scenario… e.g. &quot;Prevent sharing credit card numbers via email and Teams&quot;"
+            rows="1"
+            aria-label="Compliance scenario query"
+            maxlength="2000"
+          ></textarea>
+          <div class="input-actions">
+            <span class="char-count" id="char-count">0 / 2000</span>
+            <button class="simulate-btn" id="simulate-btn" aria-label="Run simulation">
+              <span class="btn-text">Simulate</span>
+              <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+              <span class="spinner" id="btn-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
+        <p class="input-hint">Press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> to simulate</p>
+      </div>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
