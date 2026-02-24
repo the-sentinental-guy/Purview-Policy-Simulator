@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Microsoft Purview Policy Simulator</title>
+  <link rel="stylesheet" href="/static/css/styles.css" />
+</head>
+<body>
+
+<header>
+  <!-- Purview brand icon (inline SVG) -->
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" height="28" aria-hidden="true">
+    <rect width="32" height="32" rx="4" fill="rgba(255,255,255,0.15)"/>
+    <path d="M16 6 L26 11 L26 21 L16 26 L6 21 L6 11 Z" fill="none" stroke="white" stroke-width="2"/>
+    <circle cx="16" cy="16" r="4" fill="white"/>
+  </svg>
+  <h1>Purview Policy Simulator</h1>
+  <span class="version-badge">v1.0</span>
+</header>
+
+<main>
+
+  <!-- ---- Left panel: Input ---- -->
+  <section class="card">
+    <h2><span class="icon">🧪</span> Simulation Input</h2>
+
+    <div class="example-buttons">
+      <button class="btn-secondary" onclick="loadExample('allow')">✅ Allow example</button>
+      <button class="btn-secondary" onclick="loadExample('deny')">🚫 Deny example</button>
+      <button class="btn-secondary" onclick="loadExample('noMatch')">❓ No match</button>
+    </div>
+
+    <div class="field">
+      <label for="policy-json">Simulation Payload (JSON)</label>
+      <textarea id="policy-json" spellcheck="false" placeholder='{"subject": {...}, "resource": {...}, "action": "...", "policies": [...]}'></textarea>
+    </div>
+
+    <div id="error-msg" class="error-msg"></div>
+
+    <button id="simulate-btn" class="btn-primary">▶&nbsp; Run Simulation</button>
+
+    <p style="font-size:11px;color:#605e5c;margin-top:8px;text-align:center;">
+      Tip: press <kbd>Ctrl+Enter</kbd> to run
+    </p>
+  </section>
+
+  <!-- ---- Right panel: Guide ---- -->
+  <section class="card">
+    <h2><span class="icon">📖</span> How It Works</h2>
+
+    <p style="font-size:13px;line-height:1.7;color:#323130;">
+      The simulator evaluates a list of
+      <strong>Microsoft Purview data-access policies</strong> against a
+      <em>subject</em> (user/group/service principal), a <em>resource</em>
+      (Azure data source), and an <em>action</em>.
+    </p>
+
+    <h3 style="font-size:13px;font-weight:700;margin:14px 0 6px;color:#005a9e;">Evaluation rules</h3>
+    <ul style="font-size:13px;line-height:1.9;padding-left:18px;">
+      <li><strong>Explicit Deny wins</strong> – if any matched statement has effect <code>Deny</code>, access is denied regardless of Allow statements.</li>
+      <li><strong>Default deny</strong> – if no policy matches, access is denied.</li>
+      <li>Subject wildcards (<code>"id": "*"</code>) match all identities.</li>
+      <li>Resource wildcards (<code>"resource_path": "*"</code>) match any resource.</li>
+      <li>Scope inheritance – a policy on a parent resource path covers child paths.</li>
+    </ul>
+
+    <h3 style="font-size:13px;font-weight:700;margin:14px 0 6px;color:#005a9e;">Supported actions</h3>
+    <ul style="font-size:12px;line-height:1.9;padding-left:18px;font-family:monospace;">
+      <li>Microsoft.Purview/accounts/data/read</li>
+      <li>Microsoft.Purview/accounts/data/modify</li>
+      <li>Microsoft.Purview/accounts/scan/read</li>
+      <li>Microsoft.Purview/accounts/devops/read</li>
+      <li>Microsoft.Purview/accounts/devops/modify</li>
+    </ul>
+
+    <p style="font-size:12px;margin-top:14px;color:#605e5c;">
+      Full API reference:
+      <a href="/api/docs" target="_blank">OpenAPI / Swagger UI</a> &nbsp;|&nbsp;
+      <a href="/api/redoc" target="_blank">ReDoc</a>
+    </p>
+  </section>
+
+  <!-- ---- Result panel (full width) ---- -->
+  <section id="result-panel" class="card result-hidden">
+    <h2><span class="icon">📋</span> Simulation Result</h2>
+
+    <div id="result-banner" class="result-banner">
+      <span class="banner-icon">⏳</span>
+      <span id="banner-text">Waiting…</span>
+    </div>
+
+    <div class="result-section" style="margin-bottom:16px;">
+      <h3>Effective Effect</h3>
+      <p id="effective-effect" style="font-size:14px;font-weight:600;"></p>
+    </div>
+
+    <div class="result-section" style="margin-bottom:16px;">
+      <h3>Matched Policies</h3>
+      <div id="matched-policies"></div>
+    </div>
+
+    <div class="result-section">
+      <h3>Evaluation Notes</h3>
+      <ul id="notes-list" class="notes-list"></ul>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <p>
+    Microsoft Purview Policy Simulator &nbsp;·&nbsp;
+    <a href="https://github.com/the-sentinental-guy/Purview-Policy-Simulator" target="_blank">GitHub</a>
+    &nbsp;·&nbsp; Not affiliated with Microsoft Corporation
+  </p>
+</footer>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>
